@@ -122,5 +122,6 @@
   "license": {
     "name": "",
     "url": ""
-  }
+  },
+  "mention-exempt-titles": []
 }

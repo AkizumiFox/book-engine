@@ -121,7 +121,8 @@ def scan_labels(book: Book) -> dict:
             "errors": data.get("errors", []),
         }
 
-    add_title_mentions(global_labels)
+    add_title_mentions(global_labels, {p: e["refs"] for p, e in scan_files.items()},
+                       set(book.config.get("mention-exempt-titles", ())))
     book.build_dir.mkdir(parents=True, exist_ok=True)
     book.labels_file.write_text(json.dumps({"crossref_labels": global_labels}, indent=2), encoding="utf-8")
     scan = {"files": scan_files}
@@ -133,21 +134,82 @@ def scan_labels(book: Book) -> dict:
 STATEMENT_TYPES = {"theorem", "lemma", "corollary", "proposition"}
 
 
-def add_title_mentions(labels: dict):
+SMALL_WORDS = {"a", "an", "and", "as", "at", "by", "for", "from", "in", "is", "its",
+               "of", "on", "or", "the", "to", "with"}
+
+
+def _titles_a_result(title: str) -> bool:
+    """Whether a title names a result, as opposed to describing one.
+
+    The advisory below only makes sense for names. "By the Basis Extension Theorem" uses
+    a name and should carry a link; "the conditional distribution is normal" uses a term,
+    and linking it every time would be absurd. The two books in this engine happen to
+    differ here -- one titles results after people and theorems, the other after what
+    they say -- and the check was written for the first and fired 103 times out of 104 on
+    the second.
+
+    Title case, or a possessive, is the signal: "Invertible Matrix Theorem" and
+    "Schur's Lemma" against "Normal equations" and "Random regressors".
+    """
+    words = re.findall(r"[A-Za-z\u00C0-\u024F'\u2019-]+", title)
+    if not words:
+        return False
+    if any("'" in w or "\u2019" in w for w in words):
+        return True
+    significant = [w for w in words[1:] if w.lower() not in SMALL_WORDS]
+    if not significant:
+        return words[0][:1].isupper()
+    return all(w[:1].isupper() for w in significant)
+
+
+def add_title_mentions(labels: dict, page_refs: dict | None = None, exempt: set | None = None):
     """
     "mentions": results whose title appears in another result's statement or proof
     ("... by the Basis Extension Theorem ...") without an @reference. Only named
     theorems, lemmas, corollaries and propositions count; definitions are mentioned
     everywhere by their terms and are not dependencies in that sense.
+
+    Three things are deliberately not mentions, because reporting them buried the real
+    ones: of 223 advisories in the first pass over the whole book, 4 were worth acting on.
+
+    A result does not mention itself, and a *longer* title is not a mention of the shorter
+    one inside it. The block text begins with the owner's own title, so a result called
+    "Basic Properties of Fields" was reported as naming one called "Basic Properties".
+
+    Two results may share a title -- the book has a complex "Triangle Inequality" and a
+    normed-space one. Citing either gives the reader the statement, so citing one is not
+    failing to cite the other. That single collision produced 82 of the 223.
+
+    Only a title that *names* a result is matched at all; see `_titles_a_result`. A title
+    in `mention-exempt-titles` is skipped on top of that, for the case the spelling cannot
+    settle: a genuine name that is also a term of art. "Triangle Inequality" is one -- it
+    names two results here and is also what every norm axiom (N3) is called.
+
+    A citation in the prose just outside the block counts. The book habitually writes
+    "this is @thm-x again" in the paragraph after a corollary, which sits in no block and
+    so was invisible here. Page-level references are the right granularity: a page is one
+    section, and a reader who has the link once in the section has it.
     """
+    exempt = {t.casefold() for t in (exempt or ())}
     named = {
         label: re.compile(r"\b" + re.escape(info["title"]) + r"\b", re.IGNORECASE)
         for label, info in labels.items()
         if info.get("type") in STATEMENT_TYPES and len(info.get("title", "").split()) >= 2
+        and info.get("title", "").casefold() not in exempt
+        and _titles_a_result(info.get("title", ""))
     }
+    twins = {}
+    for label in named:
+        twins.setdefault(labels[label]["title"].casefold(), set()).add(label)
+    page_refs = page_refs or {}
     for label, info in labels.items():
         text = info.pop("text", "")
-        referenced = set(info.get("uses", []))
+        own_title = info.get("title", "")
+        if own_title:
+            text = re.sub(r"\b" + re.escape(own_title) + r"\b", " ", text, flags=re.IGNORECASE)
+        referenced = set(info.get("uses", [])) | set(page_refs.get(info.get("file"), ()))
+        for cited in list(referenced):
+            referenced |= twins.get(labels.get(cited, {}).get("title", "").casefold(), set())
         info["mentions"] = sorted(
             other for other, pattern in named.items()
             if other != label and other not in referenced and pattern.search(text)

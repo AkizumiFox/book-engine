@@ -125,6 +125,35 @@ class FingerprintStore:
 # HTML Building
 # =============================================================================
 
+def _prune_stale_pages(book: Book) -> int:
+    """Delete built pages whose source is gone, inside chapters the book still has.
+
+    A renamed or split section leaves its old .html behind, and nothing downstream can
+    tell it from a live page. `check` then follows a link into it and reports a broken
+    anchor that does not exist in the sources; worse, `deploy` copies the whole chapter
+    directory, so the stale page is published at its old URL -- and because a real page
+    then sits there, write_redirects steps aside and the redirect that should have stood
+    there is never written. Splitting ch13 §06 produced six of these at once.
+
+    `deploy.is_stale_chapter_dir` covers a whole chapter that was renamed away. This is
+    the same failure one level down, inside a chapter that is still live.
+    """
+    removed = 0
+    for chapter in book.chapters:
+        directory = book.html_dir / chapter.slug
+        if not directory.is_dir():
+            continue
+        live = {Path(page.html_path).name for page in book.pages
+                if Path(page.html_path).parent.name == chapter.slug}
+        for built in directory.glob("*.html"):
+            if built.name not in live:
+                built.unlink()
+                removed += 1
+    if removed:
+        print_step(f"Removed {removed} built page(s) whose source is gone")
+    return removed
+
+
 def build_html(book: Book, specific_file: Optional[Path] = None, dev_reload: bool = False) -> bool:
     """Build the website (or one page). Returns True if every page built."""
     print_step("Building HTML...")
@@ -141,6 +170,9 @@ def build_html(book: Book, specific_file: Optional[Path] = None, dev_reload: boo
             print_error(f"File not found in chapters: {specific_file}")
             return False
         pages = [page]
+
+    if not specific_file:
+        _prune_stale_pages(book)
 
     book.tikz_cache_dir.mkdir(parents=True, exist_ok=True)
     engine = book.engine_fingerprint()

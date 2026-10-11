@@ -16,7 +16,9 @@ end
 local cache_dir = nil
 local asset_prefix = "./"
 
-local PICTURE_ENVS = { "tikzpicture", "tikzcd" }
+-- nd is a Fitch-style derivation (a book that ships latex/fitch-book.sty, which defines it):
+-- an array, so it is compiled in math mode. Inert in a book without \begin{nd}.
+local PICTURE_ENVS = { "tikzpicture", "tikzcd", "nd" }
 
 -- Return the text from the first \begin{env} to the last matching \end{env}, or nil
 local function extract_picture(text)
@@ -95,11 +97,14 @@ local function RawBlock(block, context_title)
     local picture = extract_picture(block.text)
     if not picture then return nil end
 
+    local is_derivation = picture:sub(1, 10) == "\\begin{nd}"
+    if is_derivation then picture = "$" .. picture .. "$" end
     local hash = pandoc.utils.sha1(picture)
     write_source(hash, picture)
 
     -- The image description becomes its alt text (in a Plain block, not a captioned figure)
-    local image = pandoc.Image({pandoc.Str(alt_text(picture, context_title))},
+    local alt = is_derivation and "Derivation" or alt_text(picture, context_title)
+    local image = pandoc.Image({pandoc.Str(alt)},
         asset_prefix .. "tikz/" .. hash .. ".svg", "", pandoc.Attr("", {"tikz"}, {}))
     return pandoc.Div({pandoc.Plain({image})}, pandoc.Attr("", {"tikz-figure"}, {}))
 end

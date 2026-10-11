@@ -1,6 +1,9 @@
 # Build Commands
 
-Use `./build.py <command>` (or `python -m build <command>`) from the project root.
+Use `./build.py <command>` from the book's root: the book's own `build.py` (a copy of
+`starter/build.py`) finds the engine in `engine/` or `$BOOK_ENGINE` and builds that book.
+From the engine checkout, `./build.py <command> --book DIR` (or `cd DIR && ../build.py`)
+builds any book; the demo book is `starter/`.
 
 ## Everyday
 
@@ -27,14 +30,20 @@ pages reload by themselves. Pages built by `serve` contain the reload script; th
 
 | Goal | Command |
 |------|---------|
-| Verify required tools (pandoc, pdflatex, pdftocairo) | `./build.py doctor` |
-| Validate references, links, and web vs PDF numbering | `./build.py check` |
-| Run the engine tests | `python3 -m unittest discover -s tests` |
+| Verify required tools (pandoc, pdflatex, pdftocairo); show the engine in use | `./build.py doctor` |
+| Validate references, links, web vs PDF numbering, and every check | `./build.py check` |
+| Run the engine tests | `python3 -m unittest discover -s engine/tests` (in the engine repo: `-s tests`) |
+| Run the book's tests | `python3 -m unittest discover -s tests` |
+| Lint the built HTML and LaTeX logs | `python3 engine/tools/check_rendered.py` |
 
 `check` fails on unresolved `@refs`, duplicate labels, cross-reference links in `_build/html`
-that point nowhere, component problems, and any label whose number in the PDFs differs from
-the website. Run it after `./build.py all`, since the numbering comparison reads the LaTeX
-`.aux` files. `deploy` runs `all` and `check` first and stops if either fails.
+that point nowhere, component problems, any label whose number in the PDFs differs from
+the website, a proof, claim or written solution citing a result marked `.optional`
+(`tools/check_optional.py`), and a proof, proof idea or claim citing a result proved in a
+later section (`tools/check_forward_deps.py`; a forward pointer from an example, exercise,
+remark, warning or statement is a signpost and allowed -- `--signposts` lists them). Run it
+after `./build.py all`, since the numbering comparison reads the LaTeX `.aux` files.
+`deploy` runs `all` and `check` first and stops if either fails.
 
 `check` also warns (without failing) about:
 
@@ -43,6 +52,57 @@ the website. Run it after `./build.py all`, since the numbering comparison reads
 - **Named results without a reference**: a proof that says "by the Basis Extension Theorem"
   instead of `@thm-basis-extension`. A reference gives readers a link and a preview and makes
   the dependency graph exact.
+
+**Accepted unresolved references.** A reference into a section that is planned but not yet
+written can be listed in `config/known-unresolved.json` (or the file the config key
+`known-unresolved` names), with a reason:
+
+```json
+[{"why": "Chapter 9 not written yet",
+  "references": [{"ref": "thm-spectral", "in": "src/ch04-maps/02-kernels.md"}]}]
+```
+
+`check` then fails only on new unresolved references, and warns about an entry that no
+longer occurs (delete it, or it would excuse the same reference breaking again).
+
+**Book-specific checks (plugins).** The config's `checks` list adds checkers to `check`:
+
+```json
+"checks": [
+  {"tool": "tools/check_structure.py", "fatal": true, "requires": "authoring/STYLE.md"},
+  {"tool": "tools/check_numbers.py", "fatal": false, "requires": "verify", "prefix": "numbers"},
+  "engine:check_macros",
+  {"tool": "engine:check_rendered", "options": {"overfull": false}}
+],
+"checks-disable": ["forward-deps"]
+```
+
+- `tool`: a path relative to the book (the book's own checker), or `engine:<name>` for
+  one of the engine's `tools/<name>.py`. A plain string is short for `{"tool": ...}`.
+- `fatal` (default `true`): its errors fail `check`; `false` reports them as warnings.
+- `requires`: a file or directory in the book; the check is skipped when it is missing.
+- `options`: passed to `run` as a third argument. `prefix`: put before each reported line.
+- Protocol: the module defines `run(book, labels) -> (errors, warnings)` (or
+  `run(book, labels, options)`), where `book` is `build.book.Book` (`book.root`,
+  `book.src_dir`, `book.build_dir`, `book.config`, `book.pages`) and `labels` the label
+  index. A module with only `find_violations(labels)` and `report(violations)` is run
+  through those. A plugin's directory and its parent are on `sys.path` while it loads.
+  A missing or crashing plugin is a `check` error.
+- `checks-disable` turns off the engine's default checkers (`optional`, `forward-deps`)
+  or a built-in rule (`xref-links`, `moved-ids`, `components`, `numbering`,
+  `title-mentions`, `spelling`) -- a switch for bringing a book into line in steps, not a
+  setting to leave on.
+
+Engine checkers available as `engine:<name>`:
+
+- `check_macros` -- retired and undefined macros in `src/` and the notation guides.
+  Settings in the config's `macro-check`: `retired` (macro names), `retired-hint`,
+  `guides` (e.g. `["authoring/NOTATION.md"]`), `retired-only` (files that get only the
+  retired rule), `zero-matrix` (e.g. `"\\O"`: the zero matrix may not be written
+  `\cvec{0}`). The definedness rule asks MathJax configured as the build configures it.
+- `check_rendered` -- the built HTML (raw TeX or `\qedhere` in prose, `??`, MathJax errors,
+  visible `:::` fences, `\|` in code) and the LaTeX logs (undefined control sequences,
+  missing characters; overfull boxes as one warning).
 
 ## Writing
 
@@ -149,32 +209,69 @@ What the PDF shows instead (text, or a TikZ figure).
   div's other attributes. The print content is shown until the widget has mounted.
 - PDF: only the `::: {.print}` content.
 
-## Another book
+## Books and the engine
 
-The engine (`build/`, `filters/`, `templates/`, `latex/*.sty`) can build any book directory:
+The engine (`build/`, `filters/`, `templates/`, `latex/*.sty`, `tools/`, `widgets/`) builds
+any book directory. A book directory contains `book.json` (or `config/config.json`), its
+Markdown sources and a macro file. Paths in the config are relative to the book directory,
+and output goes to its own `_build/`. To change a template or style for one book, put a
+file at the same relative path in the book directory (e.g. `templates/html/styles.css`,
+`latex/theorem-frame.sty`); it takes precedence over the engine's copy. `starter/` is a
+complete book; `tests/fixture-book/` a minimal one.
 
-```
-./build.py serve --book ../my-other-book
-```
+A book pins the engine as a git submodule in `engine/` and runs it through its own
+`build.py` (copy `starter/build.py`): the engine is `$BOOK_ENGINE` if set (a working copy,
+to try an engine change), else `engine/`. After a clone or in a new worktree, run
+`git submodule update --init`.
 
-A book directory contains `book.json` (or `config/config.json`), its Markdown sources and a
-macro file. Paths in the config are relative to the book directory, and output goes to its
-own `_build/`. To change a template or style for one book, put a file at the same relative
-path in the book directory (e.g. `templates/html/styles.css`); it takes precedence over the
-engine's copy. `tests/fixture-book/` is a minimal example.
-
-Config keys: `title`, `author`, `chapters` (directory strings, or `{"dir": …, "title": …}`;
-the title defaults to the chapter's `index.md` heading), `src` (default `src`), `preface`
-(default `src/index.md`), `macros`, `environment_settings`, `output`, `templates`, `styles`,
-`repo-url` (optional source link in the sidebar), `issues-url` (optional, e.g.
+Config keys: `title`, `author`, `chapters` (directory strings, or `{"dir": …, "title": …,
+"part": …}`; the title defaults to the chapter's `index.md` heading), `src` (default `src`),
+`preface` (default `src/index.md`), `macros`, `environment_settings`, `output`, `templates`,
+`styles`, `repo-url` (optional source link in the sidebar), `source-branch` (default
+`main`, for that link), `issues-url` (optional, e.g.
 `https://github.com/USER/REPO/issues/new`, for the "Report it" link), `prerender-math`
-(default true), `deploy-dir`, `deploy-repo`, `deploy-domain`, `deploy-push-url`.
+(default true), `reading-paths`, `mention-exempt-titles`, `redirects`, `deploy-dir`,
+`deploy-repo`, `deploy-domain`, `deploy-push-url`, and:
+
+- `site-url` -- the address the site is published at when it is not the root of
+  `deploy-domain`, e.g. `https://example.org/library/analysis/`. Canonical links, the
+  sitemap and the PDF's links to runnable cells are built on it; under a sub-path the
+  book writes no `robots.txt` and its `404.html` links from that path.
+- `external-books` -- other books this one cites as `@prefix:label`:
+
+  ```json
+  "external-books": {
+    "la": {"title": "Linear Algebra", "short": "LA",
+           "url": "../linear-algebra/",
+           "labels": "../linear-algebra/_build/crossref_labels.json"}
+  }
+  ```
+
+  `labels` is that book's registry: its `_build/crossref_labels.json`, or the
+  `labels.json` every build publishes at its site root, as a path or an http(s) URL
+  (fetched once per build, cached). In text `@la:thm-x` reads "Linear Algebra, Theorem
+  12.4"; bracketed `[@la:thm-x]` reads "[LA, Theorem 12.4]" (`format` / `short-format`
+  change that). Links carry the other book's hover preview, fetched from its site (same
+  origin, or a site that allows cross-origin reads). An unknown label fails `check`; an
+  unreadable registry is a warning and the reference prints without a number. Citations of
+  another book are not dependencies here: they never count as forward or in a reading path.
+- `moved-ids` -- anchors that moved to another page keep their deep links:
+  `{"ch13-x/06-old.html": {"thm-a": "ch13-x/07-new.html", "thm-b": "ch13-x/07-new.html#thm-c"}}`.
+  The old page forwards `#thm-a` while it no longer has that id; `check` fails on an entry
+  that leaves from an id still there or points nowhere. (A page that is gone entirely:
+  `redirects`, whose stubs keep the fragment too.)
+- `known-unresolved`, `checks`, `checks-disable`, `macro-check` -- see "Checks".
+
+Fitch-style derivations: a book that ships `latex/fitch-book.sty` (defining the `nd`
+environment) gets it loaded in every preamble, and `\begin{nd}` in a raw LaTeX block is
+compiled to an SVG for the web like a TikZ picture. Without that file nothing changes.
 
 ## Automatic deploys
 
-`.github/workflows/build-and-deploy.yml` builds, tests and checks the book on every push, and
-on `main` publishes `_build/html` to the site repository. It needs this source in a GitHub
-repository and a deploy key; the setup steps are at the top of the file.
+`starter/.github/workflows/build-and-check.yml` builds, tests and checks a book on every
+push (checking out the `engine/` submodule); it does not publish -- deploys run from the
+author's machine (`DEPLOY.md`). The engine's own `.github/workflows/engine.yml` runs the
+engine tests and builds and checks `starter/`.
 
 ## Other
 

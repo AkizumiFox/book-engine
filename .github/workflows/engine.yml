@@ -1,19 +1,13 @@
-# Builds the book on every push to main and checks it. It does not publish:
-# the site is deployed from the author's machine with ./build.py deploy --push,
-# which is also what writes the CNAME and the redirect stubs.
-# Pull requests are built and checked too. No secrets are needed.
+# The engine's own CI: its tests (fixture books), then the starter book built and
+# checked through its shim, as a book that uses the engine would be. No secrets.
 
-name: Build and check
+name: Engine tests and starter book
 
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
 
 jobs:
   build:
@@ -54,12 +48,14 @@ jobs:
       - name: Engine tests
         run: python -m unittest discover -s tests
 
-      - name: Build website and PDFs
+      - name: Build the starter book (website and PDFs)
+        working-directory: starter
         run: ./build.py all
 
-      - name: Check references, links, numbering
+      - name: Check the starter book
+        working-directory: starter
         run: ./build.py check
 
-      # No publish step on purpose. The site is deployed from the author's machine
-      # with ./build.py deploy --push. A second publisher would need a deploy key and
-      # would race with the local one.
+      - name: Starter book tests
+        working-directory: starter
+        run: python -m unittest discover -s tests

@@ -1,26 +1,72 @@
-# Book template
+# Book engine
 
-A starter repository for a textbook built on the Pandoc + Python engine used by the
-linear algebra book. Clone it, set seven config keys, delete the demo chapter, and start
-writing sections.
+The Pandoc + Python engine the textbooks of this series are built with (linear algebra,
+analysis, foundations, regression). One source — Pandoc Markdown in a book's `src/` —
+becomes both a website and a set of PDFs, with numbered environments, cross-references
+(also into other books), hover previews, a dependency graph and reading paths.
 
-One source — Pandoc Markdown in `src/` — becomes both a website and a set of PDFs.
+This repository is the engine only, plus `starter/`: the demo book a new book is copied
+from, which is also how the engine is tested end to end. A book does not contain the
+engine; it pins it as a git submodule in `engine/` and carries a ~20-line `build.py`.
 
-| Task | Command |
+| Task (in a book) | Command |
 |---|---|
 | Write with live preview | `./build.py serve` → http://127.0.0.1:8000 (rebuilds and reloads on save) |
 | Build the HTML site | `./build.py html` |
 | Build the book PDF | `./build.py book` (writes `_build/pdf/book.pdf`) |
 | Everything | `./build.py all` |
-| Validate references and numbering | `./build.py check` |
-| Run the engine tests | `python3 -m pytest tests/ -q` |
-| Check no result cites a later section | `python3 tools/check_forward_deps.py` (after `./build.py html`) |
-| Work out what a reader needs | `python3 tools/reading_path.py --list-profiles`, then `--profile <slug>` |
-| Check nothing is proved from an optional result | `python3 tools/check_optional.py` (also run by `check`) |
-| Check the external tools are installed | `./build.py doctor` |
+| Validate references, numbering, and every check | `./build.py check` |
+| Run the engine's tests / the book's tests | `python3 -m unittest discover -s engine/tests` / `-s tests` |
+| List the signposts (allowed forward pointers) | `python3 engine/tools/check_forward_deps.py --signposts` |
+| Work out what a reader needs | `python3 engine/tools/reading_path.py --list-profiles`, then `--profile <slug>` |
+| Lint what the reader sees (HTML, LaTeX logs) | `python3 engine/tools/check_rendered.py` |
+| Check the external tools are installed | `./build.py doctor` (also says which engine runs) |
 | Publish | `./build.py deploy --push` (see `DEPLOY.md`) |
 
-`BUILD.md` is the full command and syntax reference. This file is the orientation.
+`BUILD.md` is the full command, syntax and config reference. This file is the orientation.
+
+| Task (in this repository) | Command |
+|---|---|
+| Engine tests (fixture books) | `python3 -m unittest discover -s tests` |
+| Build and check the demo book | `cd starter && ./build.py all && ./build.py check` |
+| The demo book's own tests | `cd starter && python3 -m unittest discover -s tests` |
+
+## Using the engine in a book
+
+A book repository holds only what is its own:
+
+```
+build.py              the shim (copy of starter/build.py)
+engine/               git submodule: this repository, pinned to a commit / tag
+config/config.json    the book's settings
+latex/macros.tex      the book's macros (plus any latex/*.sty override)
+src/                  the book
+authoring/            the writing standard and notation guide
+tests/                the book's tests (copy starter/tests/ to start)
+tools/                the book's own checkers, run by `check` through "checks"
+.github/workflows/    starter/.github/workflows/build-and-check.yml
+```
+
+- **Add the engine:** `git submodule add https://github.com/AkizumiFox/book-engine.git engine`
+  (https, so CI clones it without a key), then `git -C engine checkout v1.0.0-rc1` and
+  commit the pointer. The pointer is the version the book builds with; each branch can
+  pin its own.
+- **A fresh clone or a new worktree** needs `git submodule update --init`; the shim
+  says so when `engine/` is empty. CI needs `submodules: true` on `actions/checkout`.
+- **Try an engine change on a book before pinning it:** `BOOK_ENGINE=~/coding/book-engine
+  ./build.py all` builds the book with that working copy instead of `engine/`. When it is
+  right, commit and tag the engine, then move the book's pointer
+  (`git -C engine fetch && git -C engine checkout <tag>`, commit `engine`).
+- **Override a template or style for one book:** put a file at the same relative path in
+  the book (`templates/html/styles.css`, `latex/theorem-frame.sty`, ...); it takes
+  precedence over the engine's copy, in HTML and in LaTeX.
+- **Book-specific checks** are the book's own scripts in `tools/`, listed in the config:
+  `"checks": [{"tool": "tools/check_structure.py", "requires": "authoring/STYLE.md"},
+  "engine:check_macros"]`. Each defines `run(book, labels) -> (errors, warnings)`.
+  `"checks-disable"` turns off an engine check while a book is being brought into line.
+  See "Checks" in `BUILD.md`.
+- **References into another book:** `@la:thm-spectral` with an `external-books` entry for
+  `la` (see `BUILD.md`); hover previews work across books on one origin.
 
 ## What the engine does
 
@@ -41,23 +87,28 @@ Three gates keep the book honest, and all three must pass:
 - **`./build.py all`** — a LaTeX error fails the build. `pdflatex` runs in nonstopmode and
   writes a PDF even after an error, so success is judged by the error lines in the log,
   not by the file existing. (Before this gate existed, 38 sections shipped damaged.)
-- **`./build.py check`** — unresolved `@refs`, duplicate labels, cross-reference links
-  pointing nowhere, any label whose number in the PDF differs from its number on the
-  web, and any proof that rests on a result marked `.optional`. It also warns, without
-  failing, about spelling and about a named result mentioned in prose without a reference.
-- **`python3 -m pytest tests/ -q`** — the engine's own tests, which build
-  `tests/fixture-book` end to end, plus three linters that read *this* book's `src/`:
-  no blank line inside a display, no non-ASCII character inside a math span, and no proof
-  that belongs to no result.
+- **`./build.py check`** — unresolved `@refs` (here and into other books), duplicate
+  labels, cross-reference links pointing nowhere, any label whose number in the PDF
+  differs from its number on the web, any proof that rests on a result marked
+  `.optional`, any proof, proof idea or claim that cites a result proved later, and
+  whatever the book adds through `checks`. It also warns, without failing, about
+  spelling and about a named result mentioned in prose without a reference.
+- **The tests** — the engine's own (`engine/tests`, which build the fixture books end to
+  end) and the book's (`tests/`, from `starter/tests/`): no blank line inside a display,
+  no non-ASCII character inside a math span, no proof that belongs to no result, and the
+  gates and reading paths on the built book.
 
 ## Start a book
 
-1. **Clone and rename.** Copy this directory, `rm -rf .git`, `git init`.
+1. **Copy the starter.** `cp -r starter ~/coding/my-book && cd ~/coding/my-book && git init`,
+   then add the engine: `git submodule add https://github.com/AkizumiFox/book-engine.git engine`
+   and pin it (`git -C engine checkout v1.0.0-rc1`). `./build.py doctor` should name
+   `engine/` as the engine.
 2. **Set the config keys.** `config/config.json` lists them under `_TODO`:
    `title`, `author`, `repo-url`, `issues-url`, `deploy-repo`, `deploy-domain`,
    `deploy-push-url`. The deploy keys can stay empty until there is something to publish;
    `DEPLOY.md` explains them. Leave `environment_settings` alone unless the book really
-   needs a different set of environments — it is the shared inheritance of both existing
+   needs a different set of environments — it is the shared inheritance of the existing
    books, and changing a colour or a counter group later means rebuilding everything.
 3. **Read the demo chapter, then delete it.** `src/ch00-demo/01-every-environment.md` is
    a working page that uses every environment, cross-reference, display, table, figure and
@@ -143,23 +194,23 @@ on the path. That is the whole point: a path with a gap in it is worse than no p
 On the command line, without building the pages:
 
 ```
-python3 tools/reading_path.py --list-profiles
-python3 tools/reading_path.py --profile example
-python3 tools/reading_path.py ch00-demo/01 --with-exercises --weakest 2
-python3 tools/reading_path.py ch00-demo/01 --verify
+python3 engine/tools/reading_path.py --list-profiles
+python3 engine/tools/reading_path.py --profile example
+python3 engine/tools/reading_path.py ch00-demo/01 --with-exercises --weakest 2
+python3 engine/tools/reading_path.py ch00-demo/01 --verify
 ```
 
 `--weakest N` lists the sections the path pulls in on at most N hard citations, with the
 citing sites. Those are the cheap prunes: reword or move one citation and the section, and
 everything only it needed, leaves the path.
 
-The demo profile above ships with this template and aims at the one section the template
+The demo profile above ships with the starter and aims at the one section the starter
 has. It is an example of the *shape*, not of the content — replace it with this book's
 readers before the second chapter exists, and delete it along with `src/ch00-demo/`.
 
 ## The standing rules
 
-The two books built on this engine follow these. They are worth keeping, because each one
+The books built on this engine follow these. They are worth keeping, because each one
 was adopted after the alternative caused a mess.
 
 - **A result is either proved from earlier material, or marked plainly as not proved
@@ -168,11 +219,10 @@ was adopted after the alternative caused a mess.
 - **No proof rests on an exercise.** The text may not lean on something the reader was
   asked to do. Exercises may cite the text, and a later exercise may cite an earlier one.
 - **No forward references.** A proof cites only what appears earlier in the book. A
-  forward pointer in prose ("we will prove this in Chapter 9") is fine as long as it is
-  never a step in an argument. Run `python3 tools/check_forward_deps.py` after
-  `./build.py html`: it reads `_build/crossref_labels.json` and exits 1 if any result
-  cites one from a later section. It is a separate command, not part of `check`, so put
-  it in the routine yourself.
+  forward pointer from an example, an exercise, a remark or a statement ("we will prove
+  this in Chapter 9") is a signpost and is fine, as long as it is never a step in an
+  argument. `./build.py check` fails if a proof, proof idea or claim cites a later
+  section; `python3 engine/tools/check_forward_deps.py --signposts` lists the signposts.
 - **A result marked `.optional` may be cited, but never proved from.** Writing
   `::: {#thm-foo .optional}` prints "Optional: nothing later depends on this" in both
   editions and takes the result off every reading path. A remark, a statement or an
@@ -220,23 +270,20 @@ shared colour, a length, a helper macro an environment body calls.
 
 ## Layout
 
-- `src/` — the book. One directory per chapter, one file per section.
-- `config/config.json` — this book's settings: chapters, environments and counters,
-  deploy target. `latex/macros.tex` — this book's macros, used by both formats.
-- `build/`, `filters/`, `templates/`, `latex/*.sty` — the engine, shared
-  by any book built with it (`./build.py serve --book ../other-book`; see "Another book"
-  in `BUILD.md`).
-- `latex/page-style.sty` and `latex/theorem-frame.sty` — the page and the frame the boxes
-  are built on, written from the documentation of `geometry`, `fancyhdr`, `parskip`,
-  `mdframed` and `thmtools`. `latex/README.md` says what is in them and who owns what.
-- `authoring/` — the writing standard (`STYLE.md`), the agent brief (`DRAFTING.md`), the
-  notation table to fill in (`NOTATION.md`), and how to hunt overflowing displays
-  (`measure-displays.md`).
-- `spelling.txt` — words the spell check accepts; grows per book.
+- `build/` — the Python build (`cli.py` is the command line; `plugins.py` the `checks`
+  hook; `external.py` references into other books).
+- `filters/` — the Lua filters both formats go through.
+- `templates/` — the HTML page, its script, styles and fonts, and the LaTeX template.
+- `latex/` — the preamble and the style files the PDFs are built from (no book macros:
+  those are the book's `latex/macros.tex`). `latex/README.md` says what is in them and
+  who owns what.
+- `tools/` — checkers usable by hand and from `check` (`check_optional`,
+  `check_forward_deps`, `check_macros`, `check_rendered`), the reading-path tool and the
+  display-width harness (`_measure.html`).
 - `widgets/` — JavaScript modules available to `::: {.widget}`.
-- `tests/` — the engine's tests and the small fixture book they build.
-- `tools/` — the forward-dependency checker, the optional-result checker, the
-  reading-path tool and the display-width harness.
-- `.github/workflows/` — build, test and check on every push; publish on `main` once the
-  `DEPLOY_KEY` secret and the `SITE_REPO` variable exist.
+- `tests/` — the engine's tests and the fixture books they build (`fixture-book`,
+  `fixture-companion` for references between books).
+- `starter/` — the demo book: what a new book copies (shim, config, macros, `src/`,
+  `authoring/`, `tests/`, CI workflow). The engine's CI builds and checks it.
+- `DEPLOY.md` — publishing a book's site.
 - `_build/`, `site/` and `docs/` are build output and are gitignored.

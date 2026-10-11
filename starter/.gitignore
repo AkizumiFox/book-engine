@@ -1,0 +1,22 @@
+# Build output
+_build/
+
+# Deploy target: clone of the public site repo (see the engine's DEPLOY.md)
+site/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# LaTeX intermediates
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+
+# Editors and OS
+.vscode/
+.DS_Store

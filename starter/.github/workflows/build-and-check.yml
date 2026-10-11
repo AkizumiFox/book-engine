@@ -1,0 +1,71 @@
+# Builds the book on every push to main and checks it. It does not publish:
+# the site is deployed from the author's machine with ./build.py deploy --push,
+# which is also what writes the CNAME and the redirect stubs.
+# Pull requests are built and checked too. No secrets are needed.
+
+name: Build and check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      # The engine is the git submodule in engine/ (public, cloned over https)
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install TeX Live, poppler, aspell
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            texlive-latex-extra texlive-pictures texlive-fonts-extra \
+            lmodern \
+            poppler-utils aspell aspell-en
+
+      - name: Install Pandoc 3.1.3
+        run: |
+          curl -sSL -o pandoc.deb https://github.com/jgm/pandoc/releases/download/3.1.3/pandoc-3.1.3-1-amd64.deb
+          sudo dpkg -i pandoc.deb
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Cache MathJax
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/book-engine
+          key: book-engine-mathjax-3.2.2
+
+      - name: Check tools
+        run: ./build.py doctor
+
+      - name: Engine tests
+        run: python -m unittest discover -s engine/tests
+
+      - name: Build website and PDFs
+        run: ./build.py all
+
+      - name: Check references, links, numbering
+        run: ./build.py check
+
+      - name: Book tests (some read the built book)
+        run: python -m unittest discover -s tests
+
+      # No publish step on purpose. The site is deployed from the author's machine
+      # with ./build.py deploy --push. A second publisher would need a deploy key and
+      # would race with the local one.

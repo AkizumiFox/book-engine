@@ -84,7 +84,8 @@ Examples:
     args = parser.parse_args(argv)
 
     if args.command == "doctor":
-        print_info(f"Engine: {ENGINE_ROOT}")
+        from . import __version__
+        print_info(f"Engine: {ENGINE_ROOT} (book-engine {__version__})")
         sys.exit(0 if doctor() else 1)
 
     book_dir = args.book or default_book or Path.cwd()
@@ -92,6 +93,8 @@ Examples:
         book = Book(_book_root(str(book_dir)))
     except FileNotFoundError as e:
         print_error(str(e))
+        print_info("Run from a book's directory (its own build.py), or pass --book DIR "
+                   "(the engine's demo book: --book starter)")
         sys.exit(2)
 
     specific_file = Path(args.file).resolve() if args.file else None

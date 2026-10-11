@@ -8,6 +8,8 @@ Builds a Markdown textbook into a website and PDFs with Pandoc.
     build_html(book)
 """
 
+__version__ = "1.0.0-rc1"
+
 from .book import Book, Chapter, Page, ENGINE_ROOT
 from .check import check, doctor
 from .cli import main, build_all, clean
@@ -16,7 +18,7 @@ from .manifest import scan_labels
 from .pdf import build_pdf, build_book
 
 __all__ = [
-    "Book", "Chapter", "Page", "ENGINE_ROOT",
+    "__version__", "Book", "Chapter", "Page", "ENGINE_ROOT",
     "build_html", "build_pdf", "build_book", "build_all", "scan_labels",
     "check", "doctor", "clean", "main",
 ]

@@ -1,5 +1,5 @@
 """A book that uses the engine as a submodule: `engine/` inside the book, and the
-book's own ~15-line build.py (shim/build.py) that honours $BOOK_ENGINE.
+book's own ~20-line build.py (starter/build.py) that honours $BOOK_ENGINE.
 
 The engine is copied (not symlinked) into the book, so the engine really lives inside
 the book root, as a submodule does -- the case where LaTeX's search path must still
@@ -16,7 +16,7 @@ from pathlib import Path
 
 ENGINE_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = Path(__file__).resolve().parent / "fixture-book"
-SHIM = ENGINE_ROOT / "shim" / "build.py"
+SHIM = ENGINE_ROOT / "starter" / "build.py"
 ENGINE_DIRS = ("build", "filters", "templates", "latex", "tools", "widgets")
 MARKER = "BOOK-OVERRIDE-OF-THEOREM-FRAME"
 

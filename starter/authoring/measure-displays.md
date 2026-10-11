@@ -1,6 +1,6 @@
 # Finding maths that overflows the text column
 
-The harness lives in the repo at `tools/_measure.html`. Copy it into the built site and drive
+The harness lives in the engine at `tools/_measure.html` (`engine/tools/_measure.html` in a book). Copy it into the built site and drive
 it headless: it renders every formula of every section into a 39rem column (the book's text
 width) and lists the ones that stick out, as
 `percent<TAB>page<TAB>first characters of the formula`, widest first.

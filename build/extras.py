@@ -437,11 +437,22 @@ def _graph_data(book: Book, graph: BookGraph, labels: dict,
         if chapter is not None and info.get("type") != "equation":
             results[chapter.slug] = results.get(chapter.slug, 0) + 1
 
+    order_of = {c.slug: position for position, c in enumerate(book.chapters)}
     counts: dict[tuple[str, str], list[int]] = {}
     for citation in graph.reading.citations:
         citing, cited = graph.chapter_of(citation.src), graph.chapter_of(citation.dst)
         if citing is None or cited is None or citing.slug == cited.slug:
             continue  # citations inside one chapter are not drawn
+        if order_of[cited.slug] > order_of[citing.slug]:
+            # A citation pointing *forward* -- "Chapter 43 does this properly" -- is a
+            # signpost to the reader, not a dependency of the earlier chapter. Drawn, it
+            # becomes an arrow from the later chapter into the earlier one, which in this
+            # graph reads "the earlier chapter's results use the later one's": false, and
+            # the opposite of what the sentence says. No proof, proof idea or claim may
+            # point forward (`./build.py check` fails through `tools/check_forward_deps.py`),
+            # so only soft edges are dropped and the hard skeleton does not move. The
+            # reading paths are built from `graph.reading`, not from this.
+            continue
         entry = counts.setdefault((cited.slug, citing.slug), [0, 0])
         entry[0 if citation.hard else 1] += 1
 
@@ -529,8 +540,9 @@ Each box is a chapter. An arrow from one chapter to another means a proof in the
 uses a result from the first; the thicker the arrow, the more proofs. Only citations made
 inside a result count, so the chapter introductions, whose job is to cite the rest of the
 book, do not crowd the picture. A dependency that a longer chain already implies is not
-drawn, and neither is one made only in passing &#8212; a remark, an example, an exercise &#8212; so
-what you see is the skeleton. Hover over a chapter to bring both back, as dashed arrows
+drawn, and neither is one made only in passing &#8212; a remark, an example, an exercise &#8212; nor
+one that points forward in the book, which is a signpost and not something the earlier
+chapter rests on. So what you see is the skeleton. Hover over a chapter to bring both back, as dashed arrows
 and as counts beside the graph; click to open it.
 </p>
 <p class="graph-intro">

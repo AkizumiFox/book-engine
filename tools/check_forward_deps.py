@@ -1,9 +1,27 @@
 #!/usr/bin/env python3
-"""Fail if any result cites a result proved in a later section of the book.
+"""Fail if any proof in the book rests on a result proved in a later section.
 
 Reads `_build/crossref_labels.json`, which the HTML build writes. Every label
-carries the `file` it lives in and a `uses` list of the labels cited inside its
-block and its proof.
+carries the `file` it lives in, a `uses` list of the labels cited inside its
+block and the blocks that follow it, and `uses_kinds`, which says for each cited
+label *which environment* cited it.
+
+That last field is what separates the two things a forward citation can be.
+
+* A citation from a **proof**, a proof idea or a claim is load-bearing: the
+  argument as written is not complete until the reader has gone forward and read
+  something the book has not yet proved. That is a defect, and this tool fails
+  on it.
+* A citation from an example, an exercise, a solution, a remark, a warning or a
+  statement is a **signpost**: "Chapter 43 does this properly". It costs the
+  reader nothing and it is how a book is meant to point at what is coming.
+  They are listed with `--signposts` rather than treated as errors.
+
+A citation whose kind was not recorded -- an index written before `uses_kinds`
+existed -- counts as load-bearing. The reading paths make the opposite choice
+and count an unknown kind soft, because there the cost of a wrong guess is a
+reader carrying a section they did not need; here it is a gap in a proof, so
+this one guesses the other way.
 
 Every label is placed by its file path -- chapter directory, then the section
 number in the file name -- and by nothing else. **Do not mix in the `number`
@@ -19,7 +37,25 @@ unordered, not as errors: the third component of `number` counts within a type
 cannot order two labels, and ordering inside a section is the job of the
 section's referee, who can see the text.
 
-Run after `./build.py html`. Exits 1 if anything cites a later section.
+Run after `./build.py html`. Exits 1 if a proof cites a later section, or if any
+citation names a label that does not exist.
+
+    python3 tools/check_forward_deps.py
+    python3 tools/check_forward_deps.py --signposts   # the allowed forward pointers
+    python3 tools/check_forward_deps.py --exercises   # results citing an exercise
+    python3 tools/check_forward_deps.py --external    # citations of other books
+
+Citations of another book (`@la:thm-x`, config `external-books`) are not
+dependencies inside this one: the scan keeps them apart, in `external_uses`, and
+they are never forward, never dangling. `--external` lists them.
+
+Also run as part of `./build.py check`, through `find_violations` and `report`,
+the way `tools/check_optional.py` is.
+
+Importable:
+
+    from tools.check_forward_deps import find_violations
+    assert not find_violations(labels)
 """
 import json
 import re
@@ -53,7 +89,74 @@ def from_file(path):
     return int(m.group(1)), m.group(2), section
 
 
-RESULT_TYPES = {"theorem", "proposition", "corollary", "lemma"}
+RESULT_TYPES = {"theorem", "proposition", "corollary", "lemma", "axiom"}
+
+
+# The blocks whose citations are load-bearing: remove the cited result and the
+# citing argument is no longer complete. These are the reading path's hard kinds
+# (`tools/reading_path.py`) minus `solution`, which `tools/check_optional.py`
+# does count. A solution forward-pointing at a later chapter hands the reader a
+# place to look, not a hole -- the exercise is optional work, and the reader who
+# does it before the later chapter loses nothing they were promised.
+LOAD_BEARING = frozenset({"proof", "proofofclaim", "claim", "idea"})
+
+# A citation the scan could not attribute to an environment. Counted load-bearing:
+# see the module docstring.
+UNKNOWN_KIND = "?"
+
+
+def place(labels):
+    """label -> (chapter, letter, section), by file path and nothing else."""
+    return {name: key for name, rec in labels.items()
+            if (key := from_file(rec.get("file"))) is not None}
+
+
+def forward_citations(labels, order):
+    """Every citation crossing into a later section, load-bearing or not.
+
+    Returns `(citing, cited, kinds, load_bearing)` tuples, sorted by citing label.
+    `order` maps a label to its `from_file` key; labels missing from it are skipped,
+    as are labels naming something that is not a label at all (`main` reports those
+    separately, as dangling).
+    """
+    rows = []
+    for name, rec in sorted(labels.items()):
+        here = order.get(name)
+        if here is None:
+            continue
+        kinds_by_label = rec.get("uses_kinds") or {}
+        for cited in rec.get("uses") or ():
+            there = order.get(cited)
+            if there is None or there <= here:
+                continue
+            kinds = tuple(sorted(kinds_by_label.get(cited) or (UNKNOWN_KIND,)))
+            rows.append((name, cited, kinds,
+                         any(k in LOAD_BEARING or k == UNKNOWN_KIND for k in kinds)))
+    return rows
+
+
+def find_violations(labels) -> list:
+    """Every load-bearing forward citation, for `./build.py check`.
+
+    Returns `(citing label, citing file, cited label, cited file, kinds)` tuples,
+    the same shape `tools/check_optional.py` returns, so the two gates read alike.
+    """
+    order = place(labels)
+    return [(name, labels[name].get("file", ""), cited,
+             labels[cited].get("file", ""),
+             tuple(k for k in kinds if k in LOAD_BEARING or k == UNKNOWN_KIND))
+            for name, cited, kinds, load_bearing in forward_citations(labels, order)
+            if load_bearing]
+
+
+def report(violations: list) -> str:
+    lines = []
+    for name, where, cited, cited_where, kinds in violations:
+        lines.append(
+            f"{where.replace('.html', '')}: {name} cites {cited} in its "
+            f"{', '.join(kinds)}, but {cited} is proved later "
+            f"({cited_where.replace('.html', '')})")
+    return "\n".join(lines)
 
 
 def list_results_citing_exercises(labels):
@@ -79,61 +182,85 @@ def list_results_citing_exercises(labels):
     return 0
 
 
-def main():
-    if "--exercises" in sys.argv:
-        if not INDEX.exists():
-            print(f"{INDEX} not found; run ./build.py html first", file=sys.stderr)
-            return 1
-        return list_results_citing_exercises(
-            json.loads(INDEX.read_text())["crossref_labels"]
-        )
+# `prefix:label`: a citation of another book. The scan files these under
+# `external_uses`; an index written before it did carries them in `uses`.
+EXTERNAL = re.compile(r"^[A-Za-z]\w*:")
 
+
+def external_citations(labels):
+    """(citing label, citing file, cited external reference) for every citation of another book."""
+    rows = []
+    for name, rec in sorted(labels.items()):
+        cited = set(rec.get("external_uses") or ()) | {
+            ref for ref in rec.get("uses") or () if EXTERNAL.match(ref)}
+        for ref in sorted(cited):
+            rows.append((name, rec.get("file", ""), ref))
+    return rows
+
+
+def list_external_citations(labels):
+    """Print every citation of another book, grouped by book prefix. Advisory."""
+    rows = external_citations(labels)
+    for name, where, ref in rows:
+        print(f"{where.replace('.html', '')}: {name} -> {ref}")
+    books = sorted({ref.split(":", 1)[0] for _, _, ref in rows})
+    print(f"\n{len(rows)} citations of other books ({', '.join(books) or 'none'}). They are "
+          f"not dependencies inside this book and are never counted as forward.")
+    return 0
+
+
+def main():
     if not INDEX.exists():
         print(f"{INDEX} not found; run ./build.py html first", file=sys.stderr)
         return 1
 
     labels = json.loads(INDEX.read_text())["crossref_labels"]
 
-    order = {}
-    unplaced = []
-    for name, rec in labels.items():
-        key = from_file(rec.get("file"))
-        if key is None:
-            unplaced.append(name)
-        else:
-            order[name] = key
+    if "--exercises" in sys.argv:
+        return list_results_citing_exercises(labels)
+    if "--external" in sys.argv:
+        return list_external_citations(labels)
 
-    forward = []
-    dangling = []
-    same_section = 0
-    for name, rec in sorted(labels.items()):
-        here = order.get(name)
-        if here is None:
-            continue
-        for cited in rec.get("uses", []):
-            if cited not in labels:
-                dangling.append((name, cited))
-            elif cited in order:
-                there = order[cited]
-                if there > here:
-                    forward.append((name, rec["number"], cited, labels[cited]["number"]))
-                elif there == here:
-                    same_section += 1
+    order = place(labels)
+    unplaced = [name for name in labels if name not in order]
 
-    for name, num, cited, cited_num in forward:
-        print(f"forward: {name} ({num}) cites {cited} ({cited_num})")
+    dangling = [(name, cited)
+                for name, rec in sorted(labels.items())
+                for cited in rec.get("uses") or ()
+                if cited not in labels and not EXTERNAL.match(cited)]
+    same_section = sum(1 for name, rec in labels.items() if name in order
+                       for cited in rec.get("uses") or ()
+                       if order.get(cited) == order[name] and cited != name)
+
+    rows = forward_citations(labels, order)
+    fatal = [row for row in rows if row[3]]
+    signposts = [row for row in rows if not row[3]]
+
+    for name, cited, kinds, _ in fatal:
+        print(f"forward: {name} ({labels[name].get('number', '')}) cites "
+              f"{cited} ({labels[cited].get('number', '')}) in its {'/'.join(kinds)}")
     for name, cited in dangling:
         print(f"dangling: {name} cites {cited}, which is not a label")
 
+    if "--signposts" in sys.argv:
+        for name, cited, kinds, _ in signposts:
+            print(f"signpost: {name} ({labels[name].get('file', '')}) points at "
+                  f"{cited} ({labels[cited].get('file', '')}) from its {'/'.join(kinds)}")
+
     checked = len(order)
-    if forward or dangling:
-        print(f"\n{len(forward)} forward, {len(dangling)} dangling, over {checked} labels")
+    if fatal or dangling:
+        print(f"\n{len(fatal)} load-bearing forward, {len(dangling)} dangling, "
+              f"over {checked} labels. A proof, proof idea or claim may not cite a "
+              f"result the book has not reached.")
         return 1
 
+    kinds_seen = sorted({kind for _, _, kinds, _ in signposts for kind in kinds})
     skipped = f", {len(unplaced)} could not be placed" if unplaced else ""
     print(
-        f"No citation crosses into a later section: {checked} labels checked{skipped}; "
-        f"{same_section} citations within a section were not ordered."
+        f"No proof cites a later section: {checked} labels checked{skipped}; "
+        f"{same_section} citations within a section were not ordered.\n"
+        f"{len(signposts)} forward pointers are signposts and stay "
+        f"({', '.join(kinds_seen)}); run with --signposts to list them."
     )
     return 0
 

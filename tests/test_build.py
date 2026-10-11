@@ -428,5 +428,24 @@ class TestFullBuild(FixtureBookCase):
         self.assertIn(r"\bookoptionalnote", section)
 
 
+class TestForwardProofFailsCheck(FixtureBookCase):
+    """A proof in Chapter 1 citing a Chapter 2 result fails `check`; a remark does not."""
+
+    @classmethod
+    def prepare(cls, book_dir: Path):
+        refs = book_dir / "src" / "ch02-more" / "01-refs.md"
+        refs.write_text(refs.read_text().replace("A broken reference: @thm-missing.\n", ""))
+        second = book_dir / "src" / "ch01-basics" / "02-second.md"
+        second.write_text(second.read_text().replace(
+            "Immediate from @def-thing.", "Immediate from @def-thing and @thm-area."
+        ).replace("Compare @lem-helper.", "Compare @lem-helper and, later, @thm-aside."))
+
+    def test_the_proof_is_reported_and_the_remark_is_not(self):
+        result = run_build(self.book_dir, "check")
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("thm-second cites thm-area in its proof", result.stdout)
+        self.assertNotIn("thm-aside is proved later", result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

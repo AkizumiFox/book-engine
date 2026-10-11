@@ -131,7 +131,7 @@ def scan_labels(book: Book) -> dict:
     return scan
 
 
-STATEMENT_TYPES = {"theorem", "lemma", "corollary", "proposition"}
+STATEMENT_TYPES = {"theorem", "lemma", "corollary", "proposition", "axiom"}
 
 
 SMALL_WORDS = {"a", "an", "and", "as", "at", "by", "for", "from", "in", "is", "its",

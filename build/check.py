@@ -23,15 +23,16 @@ MIN_PANDOC = (3, 1)
 ENGINE_ROOT = Path(__file__).resolve().parent.parent
 
 
-def _check_optional():
-    """`tools/check_optional.py`, imported by path (`tools/` is not a package).
+def _tool(name):
+    """A checker in `tools/`, imported by path (`tools/` is not a package).
 
     The same trick `build/extras.py` uses for `reading_path`: the checkers are
     standalone scripts the author runs by hand, and the build reuses them rather
-    than keeping a second copy of the rule.
+    than keeping a second copy of the rule. Each one offers the same two
+    functions, `find_violations(labels)` and `report(violations)`.
     """
     spec = importlib.util.spec_from_file_location(
-        "check_optional", ENGINE_ROOT / "tools" / "check_optional.py")
+        name, ENGINE_ROOT / "tools" / f"{name}.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -210,8 +211,15 @@ def check(book: Book, quiet: bool = False) -> bool:
 
     # A result marked `.optional` prints a promise -- nothing later depends on it -- and
     # the reading paths believe it, so no proof, claim or written solution may cite one.
-    optional_checker = _check_optional()
+    optional_checker = _tool("check_optional")
     errors.extend(optional_checker.report(optional_checker.find_violations(labels)).splitlines())
+
+    # Nor may a proof, a proof idea or a claim cite a result the book proves later: the
+    # argument would not be complete where it stands. Forward pointers from an example,
+    # an exercise, a solution, a remark, a warning or a statement are signposts and are
+    # left alone -- `tools/check_forward_deps.py` lists them with `--signposts`.
+    forward_checker = _tool("check_forward_deps")
+    errors.extend(forward_checker.report(forward_checker.find_violations(labels)).splitlines())
 
     # Web vs PDF numbering
     book_aux = book.build_dir / "tmp" / "latex-book" / "book.aux"

@@ -264,6 +264,27 @@ class Book:
         return url if not url or url.endswith("/") else url + "/"
 
     @property
+    def canonical_url(self) -> str:
+        """
+        The address the pages' canonical and og:url links are built on, ending in "/".
+
+        `canonical-url` in the config, for a copy of a book whose canonical home is
+        elsewhere (a library carrying a book that also has its own site); otherwise
+        site_url. Only those links change: the site, its 404 page and its links stay at
+        site_url.
+        """
+        url = (self.config.get("canonical-url") or "").strip()
+        if not url:
+            return self.site_url
+        return url if url.endswith("/") else url + "/"
+
+    @property
+    def canonical_elsewhere(self) -> bool:
+        """True when the pages are canonical at another address than site_url: the
+        site then publishes no sitemap of its own (see generate_site_files)."""
+        return bool(self.canonical_url) and self.canonical_url != self.site_url
+
+    @property
     def site_path(self) -> str:
         """The path part of site_url ("/" for a book at the root of its domain)."""
         match = re.match(r"^[a-z]+://[^/]+(/.*)?$", self.site_url)

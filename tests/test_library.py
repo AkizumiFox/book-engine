@@ -3,6 +3,7 @@
 
 tests/fixtures/library-a (prefix `a`) and library-b (prefix `b`) cite each other; the
 manifest tests/fixtures/library.json puts them at alpha/ and beta/ under one site-url.
+Beta also has its own site (`"canonical"` in the manifest): its pages are canonical there.
 """
 
 import json
@@ -23,6 +24,7 @@ from build.library import (ManifestError, book_overlay, landing_page, load_manif
 ENGINE_ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 SITE = "https://shelf.example.org/library/"
+BETA_HOME = "https://beta.example.net/"
 
 
 def run_library(cwd: Path, *args: str) -> subprocess.CompletedProcess:
@@ -53,6 +55,8 @@ class TestManifest(unittest.TestCase):
         a, b = manifest["books"]
         self.assertEqual((a["subdir"], b["subdir"]), ("alpha", "beta"))
         self.assertEqual(b["path"], (FIXTURES / "library-b").resolve())
+        self.assertIsNone(a["canonical"])
+        self.assertEqual(b["canonical"], BETA_HOME)                     # trailing slash added
 
     def test_rejected(self):
         book = {"prefix": "a", "path": "x"}
@@ -64,6 +68,7 @@ class TestManifest(unittest.TestCase):
             ({"site-url": SITE, "books": [dict(book, subdir="../up")]}, "subdir"),
             ({"site-url": SITE, "books": [{"prefix": "1a", "path": "x"}]}, "prefix"),
             ({"site-url": SITE, "books": [{"prefix": "a"}]}, "path"),
+            ({"site-url": SITE, "books": [dict(book, canonical="beta.example.net")]}, "canonical"),
         ]
         with tempfile.TemporaryDirectory() as tmp:
             for data, message in cases:
@@ -86,6 +91,8 @@ class TestManifest(unittest.TestCase):
         overlay = book_overlay(manifest, a, own, registries)
         self.assertEqual(overlay["site-url"], SITE + "alpha/")
         self.assertIsNone(overlay["deploy-domain"])                    # null: removed
+        self.assertIsNone(overlay["canonical-url"])                    # canonical in the library
+        self.assertEqual(book_overlay(manifest, b, {}, registries)["canonical-url"], BETA_HOME)
         self.assertEqual(overlay["external-books"], {
             "b": {"url": "../beta/", "labels": "/r/b.json", "short": "B"},  # own title kept
         })
@@ -155,8 +162,22 @@ class TestLibraryBuild(unittest.TestCase):
         self.assertIn(f'<link rel="canonical" href="{SITE}alpha/ch01-start/01-results.html">', page)
         self.assertIn(f'<meta property="og:url" content="{SITE}alpha/ch01-start/01-results.html">', page)
         self.assertNotIn("alpha.example.org", page)                 # deploy-domain cleared
-        self.assertIn(f"<loc>{SITE}beta/index.html</loc>", self.read("beta/sitemap.xml"))
+        self.assertNotIn(BETA_HOME, page)
+        self.assertIn(f"<loc>{SITE}alpha/index.html</loc>", self.read("alpha/sitemap.xml"))
+        self.assertIn('href="/library/alpha/styles.css"', self.read("alpha/404.html"))
+
+    def test_canonical_urls_of_a_book_with_its_own_site(self):
+        for path in ("index.html", "ch01-base/01-facts.html"):
+            page = self.read(f"beta/{path}")
+            self.assertIn(f'<link rel="canonical" href="{BETA_HOME}{path}">', page)
+            self.assertIn(f'<meta property="og:url" content="{BETA_HOME}{path}">', page)
+            self.assertNotIn(f"{SITE}beta/", page)
+        # everything else is the library build: relative links and assets, sibling books
+        self.assertEqual(external_links(self.read("beta/index.html"))[0]["data-base"], "../alpha/")
+        self.assertIn('href="../styles.css', self.read("beta/ch01-base/01-facts.html"))
         self.assertIn('href="/library/beta/styles.css"', self.read("beta/404.html"))
+        self.assertFalse((self.out / "beta" / "sitemap.xml").exists())  # indexed at its home
+        self.assertFalse((self.out / "beta" / "robots.txt").exists())
 
     def test_landing_page(self):
         landing = self.read("index.html")
@@ -174,8 +195,9 @@ class TestLibraryBuild(unittest.TestCase):
         self.assertEqual(self.read("robots.txt"), f"User-agent: *\nAllow: /\nSitemap: {SITE}sitemap.xml\n")
         sitemap = self.read("sitemap.xml")
         self.assertIn("<sitemapindex", sitemap)
-        for book in ("alpha", "beta"):
-            self.assertIn(f"<loc>{SITE}{book}/sitemap.xml</loc>", sitemap)
+        self.assertIn(f"<loc>{SITE}alpha/sitemap.xml</loc>", sitemap)
+        self.assertNotIn("beta", sitemap)                           # canonical elsewhere
+        self.assertIn(f"<loc>{SITE}sitemap-landing.xml</loc>", sitemap)
         not_found = self.read("404.html")
         self.assertIn('"/library/"', not_found)
         self.assertIn('"subdir": "beta"', not_found)

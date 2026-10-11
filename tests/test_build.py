@@ -499,5 +499,42 @@ class TestSiteUrl(FixtureBookCase):
         self.assertEqual(book.site_path, "/")
 
 
+class TestCanonicalUrl(FixtureBookCase):
+    """`canonical-url`: pages canonical at another address than the one they are built for."""
+
+    @classmethod
+    def prepare(cls, book_dir: Path):
+        config = json.loads((book_dir / "book.json").read_text())
+        config["deploy-domain"] = "mirror.example.com"
+        config["canonical-url"] = "https://home.example.org/book"
+        (book_dir / "book.json").write_text(json.dumps(config, indent=2))
+
+    def test_properties(self):
+        self.assertEqual(self.book.site_url, "https://mirror.example.com/")
+        self.assertEqual(self.book.canonical_url, "https://home.example.org/book/")
+        self.assertTrue(self.book.canonical_elsewhere)
+
+    def test_canonical_and_og_url_point_home(self):
+        page = self.page("ch01-basics/01-first.html")
+        home = "https://home.example.org/book/ch01-basics/01-first.html"
+        self.assertIn(f'<link rel="canonical" href="{home}">', page)
+        self.assertIn(f'<meta property="og:url" content="{home}">', page)
+        self.assertNotIn("mirror.example.com", page)
+        self.assertIn('href="../styles.css', page)               # the page itself stays relative
+
+    def test_no_sitemap_and_robots_names_none(self):
+        self.assertFalse((self.html / "sitemap.xml").exists())
+        self.assertEqual((self.html / "robots.txt").read_text(), "User-agent: *\nAllow: /\n")
+        self.assertIn('href="/styles.css"', (self.html / "404.html").read_text())  # the mirror's root
+
+    def test_equal_to_site_url_changes_nothing(self):
+        book = Book(self.book_dir)
+        book.config["canonical-url"] = "https://mirror.example.com"
+        self.assertEqual(book.canonical_url, "https://mirror.example.com/")
+        self.assertFalse(book.canonical_elsewhere)
+        book.config.pop("canonical-url")
+        self.assertEqual(book.canonical_url, book.site_url)
+
+
 if __name__ == "__main__":
     unittest.main()

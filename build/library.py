@@ -21,7 +21,8 @@ The manifest (paths in it are relative to the manifest's directory):
       "files": [{"from": "generated/atlas.html", "to": "atlas/atlas.html"}],
       "books": [{"prefix": "fd1", "title": "Logic and Proof", "short": "FD1",
                  "blurb": "...", "path": "../foundations/fd1", "subdir": "fd1",
-                 "series": "Foundations", "overlay": {...}}]
+                 "series": "Foundations", "overlay": {...},
+                 "canonical": "https://fd1.example.org/"}]
     }
 
 Two passes, so books may cite each other in both directions:
@@ -30,7 +31,9 @@ Two passes, so books may cite each other in both directions:
 2. every book's website, with a generated config overlay: `site-url` = the library's
    `site-url` + the book's sub-directory, `external-books` = every other book of the
    manifest under its prefix, `url` the relative path to its sub-directory (so links and
-   hover previews stay on the same origin) and `labels` its pass-1 registry.
+   hover previews stay on the same origin) and `labels` its pass-1 registry; and
+   `canonical-url` = the book's `canonical` (its own production site, where its pages'
+   canonical and og:url links then point; it gets no sitemap in the library), or none.
 
 Each book is built in `_build/library` (the manifest's `build-dir`), never in the
 author's `_build/html`, then its HTML copied to `<out>/<subdir>/`. The library root gets
@@ -102,10 +105,17 @@ def load_manifest(path: Path) -> dict:
         seen_subdirs.add(subdir)
         if not entry.get("path"):
             raise ManifestError(f"book {prefix}: \"path\" (the book's directory) is missing")
+        canonical = (entry.get("canonical") or "").strip()
+        if canonical:
+            if not re.match(r"^https?://[^/]+(/.*)?$", canonical):
+                raise ManifestError(f"book {prefix}: \"canonical\" must be an http(s) address, "
+                                    "e.g. \"https://book.example.org/\"")
+            if not canonical.endswith("/"):
+                canonical += "/"
         overlay = entry.get("overlay")
         if isinstance(overlay, str):
             overlay = load_overlay(base / overlay)
-        normalized.append(dict(entry, prefix=prefix, subdir=subdir,
+        normalized.append(dict(entry, prefix=prefix, subdir=subdir, canonical=canonical or None,
                                path=(base / entry["path"]).resolve(), overlay=overlay or {}))
     files = []
     for item in data.get("files") or []:
@@ -155,6 +165,9 @@ def book_overlay(manifest: dict, entry: dict, own_config: dict, registries: dict
     overlay = {
         "site-url": manifest["site-url"] + entry["subdir"] + "/",
         "deploy-domain": None,     # the library's own address, not the book's own domain
+        # canonical and og:url: the book's own site when the manifest names one
+        # ("canonical"), else the library (a canonical-url of the book's config is dropped)
+        "canonical-url": entry.get("canonical"),
         "build-dir": manifest["build-dir"],
         "output": None,            # every output inside build-dir
         "external-books": external,
@@ -302,8 +315,9 @@ def assemble(manifest: dict, built: list, with_pdf: bool):
 def sitemap_index(manifest: dict, out: Path) -> str:
     site_url = manifest["site-url"]
     locations = [f"{site_url}sitemap-landing.xml"]
+    # a book canonical elsewhere is indexed there, not here (and has no sitemap.xml)
     locations += [f"{site_url}{entry['subdir']}/sitemap.xml" for entry in manifest["books"]
-                  if (out / entry["subdir"] / "sitemap.xml").exists()]
+                  if not entry.get("canonical") and (out / entry["subdir"] / "sitemap.xml").exists()]
     entries = "\n".join(f"  <sitemap><loc>{escape(loc)}</loc></sitemap>" for loc in locations)
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
             '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'

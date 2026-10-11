@@ -15,6 +15,7 @@
     "books": [
         {"prefix": "a", "title": "Alpha Book", "short": "A", "path": "library-a", "subdir": "alpha",
          "series": "First Series", "blurb": "The first volume."},
-        {"prefix": "b", "path": "library-b", "subdir": "beta", "series": "Second Series"}
+        {"prefix": "b", "path": "library-b", "subdir": "beta", "series": "Second Series",
+         "canonical": "https://beta.example.net"}
     ]
 }

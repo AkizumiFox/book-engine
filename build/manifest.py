@@ -437,9 +437,18 @@ def generate_site_files(book: Book):
     A book published under a sub-path (`site-url`, a library of books on one origin)
     gets its sitemap but no robots.txt, which only counts at the root of a domain: the
     library's own root carries that.
+
+    A book whose pages are canonical elsewhere (`canonical-url` set to another address
+    than site_url) gets no sitemap: a sitemap may only list addresses on its own origin
+    and path, and these pages are indexed at their canonical home, which publishes its
+    own. A robots.txt (at the root of a domain) then names no sitemap.
     """
     site_url = book.site_url
-    if site_url:
+    if site_url and book.canonical_elsewhere:
+        (book.html_dir / "sitemap.xml").unlink(missing_ok=True)
+        if book.site_path == "/":
+            _write_if_changed(book.html_dir / "robots.txt", "User-agent: *\nAllow: /\n")
+    elif site_url:
         from .extras import extra_page_names   # local import: extras imports this module
         paths = [p.html_path for p in book.pages] + extra_page_names(book)
         urls = "\n".join(f"  <url><loc>{site_url}{path}</loc></url>" for path in paths)

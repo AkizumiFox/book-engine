@@ -237,6 +237,12 @@ Config keys: `title`, `author`, `chapters` (directory strings, or `{"dir": …, 
   `deploy-domain`, e.g. `https://example.org/library/analysis/`. Canonical links, the
   sitemap and the PDF's links to runnable cells are built on it; under a sub-path the
   book writes no `robots.txt` and its `404.html` links from that path.
+- `canonical-url` -- where the pages are canonical when that is not `site-url`: each
+  page's `<link rel="canonical">` and `og:url` become `<canonical-url><page path>`, and
+  nothing else changes (links stay relative, the 404 page and the PDF's links stay on
+  `site-url`). A book canonical elsewhere writes no `sitemap.xml` (a sitemap lists only
+  its own origin's addresses; the canonical site publishes its own) and its `robots.txt`,
+  if any, names no sitemap. Set by the library for a book with `canonical`.
 - `external-books` -- other books this one cites as `@prefix:label`:
 
   ```json
@@ -317,7 +323,13 @@ every book a manifest lists and assembles one site from them:
   defaults to the book's own config title; `short` (default: the prefix in capitals) is
   the bracketed-citation form; `series` groups it on the landing page; `blurb` (HTML) is
   shown on its card; `overlay` (an object or a JSON file) is merged into that book's
-  generated overlay.
+  generated overlay. `canonical` (an http(s) address, e.g.
+  `"https://linear-algebra.akizumifox.com/"`) is for a book that also has its own
+  published site: its pages' canonical and og:url links point to the same page there
+  (`<canonical><page path>`) instead of into the library, it gets no `sitemap.xml` in
+  the library and the library's sitemap index leaves it out. Everything else (relative
+  links, assets, links and hover previews to the other books, the root `404.html` and
+  landing page) is as for any other book.
 - `landing`: `title`, `badge`, `intro` (HTML), `footer` (HTML) and `groups`, each with a
   `title` and/or `series` (the books whose `series` matches), or an explicit `books` list
   of prefixes, an optional `intro` and extra `links` cards. Without `groups`, one section
@@ -329,7 +341,8 @@ How it builds, in two passes so books can cite each other in both directions:
 1. every book's labels are scanned (its registry `<build-dir>/crossref_labels.json`);
 2. every book's website is built with a generated config overlay (`--config-overlay`):
    `site-url` = `<site-url><subdir>/` (so canonical and og:url links, the sitemap and the
-   404 page are the library's), `deploy-domain` removed, `build-dir` set, and
+   404 page are the library's), `canonical-url` = the book's `canonical` (or removed),
+   `deploy-domain` removed, `build-dir` set, and
    `external-books` = every other book of the manifest under its prefix, with `url` its
    relative sub-directory (`../fd2/`, so links and hover previews stay on one origin) and
    `labels` its pass-1 registry. A book's own `external-books` entries are kept; for a
@@ -343,7 +356,8 @@ can be a clone of the site's repository) and filled: each book's HTML in `<subdi
 and at the root `index.html` (the landing page: light/dark following the system and the
 books' theme toggle, no external fonts or scripts), `404.html` (offers the book whose
 sub-directory the missing address is in; GitHub Pages serves only the root one),
-`robots.txt`, `sitemap.xml` (a sitemap index of each book's sitemap and
+`robots.txt`, `sitemap.xml` (a sitemap index of each book's sitemap, except a book's
+with `canonical`, and
 `sitemap-landing.xml`) and `.nojekyll`. `--with-pdf` also builds each book's section and
 book PDFs and publishes them; without it a page's PDF links have nothing behind them.
 `--config-overlay FILE` is merged over every book's overlay (e.g. a preview profile).

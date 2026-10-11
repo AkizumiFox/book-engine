@@ -271,6 +271,86 @@ the config's. The overlay counts as part of the config for the "unchanged page" 
 a build with a different overlay (or none) rebuilds the affected pages. `serve` re-reads
 the overlay file when it changes.
 
+`build-dir` (default `_build`) moves everything a build writes, including `html/` and
+`pdf/` unless `output` names them; the TikZ figure cache stays in `_build/cache/tikz`,
+shared by every build directory.
+
+### A library: several books in one site
+
+`./build.py library site/books.json` (from any book, or from the engine checkout) builds
+every book a manifest lists and assembles one site from them:
+
+```json
+{
+  "site-url": "https://akizumifox.github.io/math-atlas/",
+  "out": "site",
+  "build-dir": "_build/library",
+  "landing": {
+    "title": "Math Atlas", "badge": "Work in progress",
+    "intro": "A textbook series from first proofs to the qualifying exam.",
+    "groups": [
+      {"series": "Foundations", "intro": "Read these first."},
+      {"title": "Analysis", "books": ["an1"]},
+      {"title": "The atlas", "links": [{"title": "Dependency graph", "href": "atlas/atlas.html",
+                                        "blurb": "Every planned volume and chapter."}]}
+    ],
+    "footer": "Books: CC BY-NC-SA 4.0."
+  },
+  "files": [{"from": "generated/atlas.html", "to": "atlas/atlas.html"}],
+  "books": [
+    {"prefix": "fd1", "title": "Logic and Proof", "short": "FD1", "blurb": "Volume 1.",
+     "path": "../foundations/fd1", "subdir": "fd1", "series": "Foundations",
+     "overlay": {"issues-url": "https://github.com/USER/foundations/issues/new"}},
+    {"prefix": "an1", "title": "Analysis on the Real Line", "path": "../analysis/an1",
+     "subdir": "an1", "series": "Analysis"}
+  ]
+}
+```
+
+- Paths (`out`, book `path`, `files.from`, an `overlay` given as a file name) are relative
+  to the manifest's directory. `--out DIR` overrides `out` (relative to the current
+  directory).
+- `site-url` (required): where the library is published. Each book is published at
+  `<site-url><subdir>/`.
+- Books: `prefix` (required) is the prefix other books cite it by (`@fd1:thm-x`);
+  `path` (required) the book's directory; `subdir` defaults to the prefix; `title`
+  defaults to the book's own config title; `short` (default: the prefix in capitals) is
+  the bracketed-citation form; `series` groups it on the landing page; `blurb` (HTML) is
+  shown on its card; `overlay` (an object or a JSON file) is merged into that book's
+  generated overlay.
+- `landing`: `title`, `badge`, `intro` (HTML), `footer` (HTML) and `groups`, each with a
+  `title` and/or `series` (the books whose `series` matches), or an explicit `books` list
+  of prefixes, an optional `intro` and extra `links` cards. Without `groups`, one section
+  per series in manifest order; books no group lists come last, by series.
+- `files`: extra files or directories copied into the site.
+
+How it builds, in two passes so books can cite each other in both directions:
+
+1. every book's labels are scanned (its registry `<build-dir>/crossref_labels.json`);
+2. every book's website is built with a generated config overlay (`--config-overlay`):
+   `site-url` = `<site-url><subdir>/` (so canonical and og:url links, the sitemap and the
+   404 page are the library's), `deploy-domain` removed, `build-dir` set, and
+   `external-books` = every other book of the manifest under its prefix, with `url` its
+   relative sub-directory (`../fd2/`, so links and hover previews stay on one origin) and
+   `labels` its pass-1 registry. A book's own `external-books` entries are kept; for a
+   manifest book only `url` and `labels` are replaced (its own `title`/`short` win).
+   The overlay used is saved as `<build-dir>/library-overlay.json`.
+
+Books are built in `build-dir` (default `_build/library`), so the library never touches a
+book's own `_build/html`. `out` is then emptied (a `.git` and a `CNAME` are kept, so it
+can be a clone of the site's repository) and filled: each book's HTML in `<subdir>/`
+(as `deploy` copies it: no stale chapters, no `_` scratch files, with redirect stubs),
+and at the root `index.html` (the landing page: light/dark following the system and the
+books' theme toggle, no external fonts or scripts), `404.html` (offers the book whose
+sub-directory the missing address is in; GitHub Pages serves only the root one),
+`robots.txt`, `sitemap.xml` (a sitemap index of each book's sitemap and
+`sitemap-landing.xml`) and `.nojekyll`. `--with-pdf` also builds each book's section and
+book PDFs and publishes them; without it a page's PDF links have nothing behind them.
+`--config-overlay FILE` is merged over every book's overlay (e.g. a preview profile).
+Pass 1 warns that later books' registries are missing; that is expected. Search stays
+per book (no cross-book search yet), and each book carries its own copy of the shared
+assets (styles, scripts, MathJax fonts).
+
 Fitch-style derivations: a book that ships `latex/fitch-book.sty` (defining the `nd`
 environment) gets it loaded in every preamble, and `\begin{nd}` in a raw LaTeX block is
 compiled to an SVG for the web like a TikZ picture. Without that file nothing changes.
@@ -288,3 +368,5 @@ engine tests and builds and checks `starter/`.
 |------|---------|
 | Scan labels only | `./build.py scan` |
 | Regenerate tooltip data only | `./build.py manifest` |
+| Build with config keys overridden | `./build.py html --config-overlay preview.json` |
+| Build several books into one site | `./build.py library site/books.json` (`--out DIR`, `--with-pdf`) |

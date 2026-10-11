@@ -907,6 +907,8 @@ local function external_reference(citation)
         local prefix_path = ""
         if not absolute then
             prefix_path = doc_meta and doc_meta["asset-prefix"] and pandoc.utils.stringify(doc_meta["asset-prefix"]) or ""
+            -- a page at the site root has the prefix "./": "../other/", not "./../other/"
+            if prefix_path == "./" and url:sub(1, 3) == "../" then prefix_path = "" end
         end
         local attrs = {}
         if info then

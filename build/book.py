@@ -166,7 +166,10 @@ class Book:
 
     @property
     def build_dir(self) -> Path:
-        return self.root / "_build"
+        """Where everything a build writes goes (config `build-dir`, default `_build`). The
+        library assembler builds each book in `_build/library`, so its overlaid build never
+        touches the author's own `_build/html`."""
+        return self.path(self.config.get("build-dir") or "_build")
 
     @property
     def cache_dir(self) -> Path:
@@ -174,15 +177,18 @@ class Book:
 
     @property
     def html_dir(self) -> Path:
-        return self.path(self.config.get("output", {}).get("html", "_build/html"))
+        configured = self.config.get("output", {}).get("html")
+        return self.path(configured) if configured else self.build_dir / "html"
 
     @property
     def pdf_dir(self) -> Path:
-        return self.path(self.config.get("output", {}).get("pdf", "_build/pdf"))
+        configured = self.config.get("output", {}).get("pdf")
+        return self.path(configured) if configured else self.build_dir / "pdf"
 
     @property
     def book_pdf(self) -> Path:
-        return self.path(self.config.get("output", {}).get("book", "_build/pdf/book.pdf"))
+        configured = self.config.get("output", {}).get("book")
+        return self.path(configured) if configured else self.build_dir / "pdf" / "book.pdf"
 
     @property
     def labels_file(self) -> Path:
@@ -194,7 +200,9 @@ class Book:
 
     @property
     def tikz_cache_dir(self) -> Path:
-        return self.cache_dir / "tikz"
+        # Shared by every build directory: a figure's file name is the hash of its source,
+        # so a library build reuses the figures the book's own build compiled
+        return self.root / "_build" / "cache" / "tikz"
 
     @property
     def macros_file(self) -> Path:

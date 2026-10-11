@@ -1,0 +1,12 @@
+{
+    "title": "Beta Book",
+    "author": "Test Author",
+    "chapters": ["src/ch01-base"],
+    "environment_settings": {
+        "big_envs": [
+            {"prefix": "thm", "name": "Theorem", "numbered": true, "counter_group": "main", "color": "#2f62b5"},
+            {"prefix": "def", "name": "Definition", "numbered": true, "counter_group": "definition", "color": "#b0414f"}
+        ],
+        "small_envs": ["proof", "remark"]
+    }
+}

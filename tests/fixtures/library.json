@@ -1,0 +1,20 @@
+{
+    "site-url": "https://shelf.example.org/library",
+    "out": "site",
+    "landing": {
+        "title": "Test Library",
+        "intro": "Two books that cite each other.",
+        "badge": "Fixture",
+        "groups": [
+            {"series": "First Series", "intro": "Where it starts."},
+            {"title": "Elsewhere", "links": [{"title": "Notes", "href": "notes/notes.html", "blurb": "A copied file."}]}
+        ],
+        "footer": "Footer text."
+    },
+    "files": [{"from": "notes.html", "to": "notes/notes.html"}],
+    "books": [
+        {"prefix": "a", "title": "Alpha Book", "short": "A", "path": "library-a", "subdir": "alpha",
+         "series": "First Series", "blurb": "The first volume."},
+        {"prefix": "b", "path": "library-b", "subdir": "beta", "series": "Second Series"}
+    ]
+}

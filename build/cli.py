@@ -71,11 +71,13 @@ Examples:
     ./build.py clean               Remove _build
     ./build.py html --book ../other-book   Build a different book with this engine
     ./build.py html --config-overlay preview.json   Build with config keys overridden
+    ./build.py library books.json  Build the books a manifest lists into one site
         """,
     )
     parser.add_argument("command", choices=["html", "pdf", "book", "all", "serve", "check", "doctor",
-                                            "scan", "manifest", "deploy", "clean"])
-    parser.add_argument("file", nargs="?", help="html/pdf: build only this source file")
+                                            "scan", "manifest", "deploy", "clean", "library"])
+    parser.add_argument("file", nargs="?", help="html/pdf: build only this source file; "
+                                                "library: the manifest (JSON)")
     parser.add_argument("--book", default=None,
                         help="book directory (containing book.json or config/config.json); "
                              "default: the book whose build.py ran this, else the current directory")
@@ -84,6 +86,8 @@ Examples:
     parser.add_argument("--config-overlay", metavar="FILE", default=None,
                         help="JSON object merged over the book's config for this run "
                              "(objects merge, null removes a key; the config file is not changed)")
+    parser.add_argument("--out", default=None, help="library: output directory (default: the manifest's \"out\")")
+    parser.add_argument("--with-pdf", action="store_true", help="library: build and publish each book's PDFs too")
     parser.add_argument("--port", type=int, default=8000, help="serve: port (default 8000)")
     args = parser.parse_args(argv)
 
@@ -91,6 +95,18 @@ Examples:
         from . import __version__
         print_info(f"Engine: {ENGINE_ROOT} (book-engine {__version__})")
         sys.exit(0 if doctor() else 1)
+
+    if args.command == "library":
+        if not args.file:
+            parser.error("library needs a manifest: ./build.py library site/books.json")
+        from .library import build_library
+        try:
+            ok = build_library(Path(args.file), out=args.out, with_pdf=args.with_pdf,
+                               extra_overlay=args.config_overlay)
+        except (ValueError, FileNotFoundError) as e:
+            print_error(str(e))
+            sys.exit(2)
+        sys.exit(0 if ok else 1)
 
     book_dir = args.book or default_book or Path.cwd()
     try:

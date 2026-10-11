@@ -28,6 +28,18 @@ Widget (custom JavaScript)
     HTML: the module's default export is called with a mount element; the print
     content is shown until it mounts. LaTeX: only the print content.
 
+Second-reading fold (not interactive, but it has a web form and a print form too)
+    ::: {.second-reading title="Why the order is loss-free"}
+    Material a first reading may skip: a meta-proof, edge cases, a long justification.
+    :::
+    HTML: a <details> closed by default, whose <summary> shows a marker and the title
+    ("Second reading" without one). LaTeX: the content inline, between light rules, under
+    a head with the same marker and the title. The fold is display only: its content is
+    turned into blocks of the enclosing list *before* theorems.lua runs, so environments
+    inside it are numbered, labelled, cited and previewed exactly as outside it, and the
+    label scan (search text, dependencies) sees them as main-line blocks. A fold inside a
+    fold, and a heading inside a fold, are reported as errors.
+
 Problems (bad expressions, missing print content, unknown widget file) are written to
 stderr; in scan mode they are printed as COMPONENT_ERROR lines for ./build.py check.
 ]]
@@ -374,6 +386,95 @@ local function widget(div)
 end
 
 -- =============================================================================
+-- Second-reading folds
+-- =============================================================================
+
+local SECOND_READING = "Second reading"
+-- The marker each format's opening block carries, so a fold found inside another can be told
+local FOLD_OPEN_HTML = '<details class="second-reading"'
+local FOLD_OPEN_LATEX = "\\begin{booksecondreading}"
+local FOLD_MARK_SCAN = "<!-- second-reading -->"
+
+local function title_inlines(text)
+    if not text or not text:match("%S") then return nil end
+    local doc = pandoc.read(text, "markdown+tex_math_single_backslash")
+    local first = doc.blocks[1]
+    if first and (first.t == "Para" or first.t == "Plain") then return first.content end
+    return {pandoc.Str(text)}
+end
+
+local function is_fold_marker(block)
+    return block.t == "RawBlock" and (block.text:find(FOLD_OPEN_HTML, 1, true)
+        or block.text:find(FOLD_OPEN_LATEX, 1, true) or block.text:find(FOLD_MARK_SCAN, 1, true)
+        or block.text == "</div></details>" or block.text == "\\end{booksecondreading}"
+        or block.text == "<!-- /second-reading -->")
+end
+
+local function second_reading(div)
+    local title = title_inlines(div.attributes["title"])
+    local nested, heading = false, false
+    div.content:walk {
+        RawBlock = function(block) if is_fold_marker(block) then nested = true end end,
+        Header = function() heading = true end,
+    }
+    local where = settings.source
+    if nested then
+        report("second-reading fold inside another second-reading fold in " .. where
+            .. " (folds do not nest: close the first before opening the next)")
+        -- Keep the text, drop the inner fold's frame
+        div.content = div.content:walk { RawBlock = function(block)
+            if is_fold_marker(block) then return {} end
+        end, Plain = function(plain)
+            if plain.content[1] and plain.content[1].t == "RawInline"
+                and plain.content[1].text:find("<summary", 1, true) then return {} end
+        end }
+    end
+    if heading then
+        report("heading inside a second-reading fold in " .. where
+            .. " (a fold sits inside a section; use a bold lead-in instead)")
+    end
+
+    local blocks = {}
+    if is_html then
+        local head = {pandoc.RawInline("html",
+            '<summary><span class="second-reading-marker" aria-hidden="true">\u{21BA}</span>')}
+        if title then
+            table.insert(head, pandoc.RawInline("html",
+                '<span class="second-reading-kicker">' .. SECOND_READING .. '</span><span class="second-reading-title">'))
+            for _, inline in ipairs(title) do table.insert(head, inline) end
+        else
+            table.insert(head, pandoc.RawInline("html", '<span class="second-reading-title">' .. SECOND_READING))
+        end
+        table.insert(head, pandoc.RawInline("html", '</span></summary>'))
+        table.insert(blocks, pandoc.RawBlock("html", FOLD_OPEN_HTML .. ">"))
+        table.insert(blocks, pandoc.Plain(head))
+        table.insert(blocks, pandoc.RawBlock("html", '<div class="second-reading-body">'))
+        for _, block in ipairs(div.content) do table.insert(blocks, block) end
+        table.insert(blocks, pandoc.RawBlock("html", "</div></details>"))
+        return blocks
+    end
+    if is_latex then
+        local head = SECOND_READING
+        if title then
+            local latex = pandoc.write(pandoc.Pandoc({pandoc.Plain(title)}), "latex")
+            head = latex:gsub("^%s+", ""):gsub("%s+$", "")
+        end
+        -- Braces: a title may contain "]" or ","
+        table.insert(blocks, pandoc.RawBlock("latex",
+            FOLD_OPEN_LATEX .. "{" .. (title and "1" or "0") .. "}{" .. head .. "}"))
+        for _, block in ipairs(div.content) do table.insert(blocks, block) end
+        table.insert(blocks, pandoc.RawBlock("latex", "\\end{booksecondreading}"))
+        return blocks
+    end
+    -- Any other format (the label scan writes JSON): the content as main-line blocks, between
+    -- comments that every text the scan takes (search, prose, dependencies) ignores
+    table.insert(blocks, pandoc.RawBlock("html", FOLD_MARK_SCAN))
+    for _, block in ipairs(div.content) do table.insert(blocks, block) end
+    table.insert(blocks, pandoc.RawBlock("html", "<!-- /second-reading -->"))
+    return blocks
+end
+
+-- =============================================================================
 -- Filter
 -- =============================================================================
 
@@ -392,6 +493,7 @@ end
 local function Div(div)
     if div.classes:includes("plot") then return plot(div) end
     if div.classes:includes("widget") then return widget(div) end
+    if div.classes:includes("second-reading") then return second_reading(div) end
     return nil
 end
 

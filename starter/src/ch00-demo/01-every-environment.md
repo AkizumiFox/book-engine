@@ -179,6 +179,20 @@ To decide the parity of an integer \( n \) written in decimal:
 This is correct because \( n \) and \( d \) differ by a multiple of \( 10 \), which is even, so by @thm-sum-of-evens they have the same parity.
 :::
 
+**Second reading** — `::: {.second-reading title="..."}`, a fold for what a first reading may skip: a meta-proof whose statement stays on the main line, edge cases, a long justification. The website shows it closed, with a marker and the title; the PDF prints it between two light rules. It is a display device, not `.optional`: results inside it are numbered and may be cited like any other.
+
+::: {.second-reading title="Why the last digit decides, for any even base"}
+::: {#lem-even-base-digit}
+[Last Digit in an Even Base]
+
+If \( b \) is even and \( n = qb + d \) with integers \( q \) and \( d \), then \( n \) and \( d \) have the same parity.
+:::
+
+::: {.proof}
+\( qb \) is even because \( b \) is (@lem-even-multiple), so \( n - d = qb \) is even: \( n \) and \( d \) differ by an even number, which is what having the same parity means.
+:::
+:::
+
 ## Tables and figures
 
 **Table** — an ordinary Pandoc pipe table. Mathematics inside a cell is written `\( ... \)` as everywhere else. Keep tables narrow: they are set at the text width in both formats.

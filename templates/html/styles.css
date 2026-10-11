@@ -1020,6 +1020,148 @@ div.equation mjx-container[display="true"] {
   }
 }
 
+/* --- Second-reading fold (components.lua: ::: {.second-reading title="..."}) ---
+   Material a first reading may skip -- a meta-proof, edge cases, a long justification.
+   A native <details>, closed by default: the summary is a quiet bar with a marker,
+   the "Second reading" kicker and the title; opened, the content sits under a dashed
+   rule so the reader sees where the fold ends. Environments inside keep their boxes. */
+details.second-reading {
+  margin: 1.4em 0;
+  border: 1px dashed var(--rule-strong);
+  border-radius: 6px;
+  background: var(--paper);
+}
+
+details.second-reading > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55em;
+  padding: 0.5em 0.9em;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+details.second-reading > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* The chevron after the title: v while closed, ^ while open, as on folded proofs */
+details.second-reading > summary::after {
+  content: "";
+  flex: none;
+  align-self: center;
+  width: 0.42em;
+  height: 0.42em;
+  margin-left: 0.15em;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-0.12em) rotate(45deg);
+  transition: transform 0.22s ease;
+  opacity: 0.8;
+}
+
+details.second-reading[open] > summary::after {
+  transform: translateY(0.08em) rotate(225deg);
+}
+
+details.second-reading > summary:hover,
+details.second-reading > summary:focus-visible {
+  background: var(--hover-wash);
+  color: var(--accent);
+}
+
+details.second-reading > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.second-reading-marker {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  margin-top: 0.2em;
+  width: 1.45em;
+  height: 1.45em;
+  border-radius: 50%;
+  background: var(--subtle);
+  border: 1px solid var(--rule);
+  color: var(--faint);
+  font-size: 0.78em;
+  line-height: 1;
+}
+
+.second-reading-kicker {
+  flex: none;
+  font-size: 0.72em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.second-reading-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--ink-strong);
+  font-style: italic;
+}
+
+details.second-reading > summary:hover .second-reading-title,
+details.second-reading > summary:focus-visible .second-reading-title {
+  color: var(--accent);
+}
+
+details.second-reading[open] > summary {
+  border-bottom: 1px dashed var(--rule-strong);
+  border-radius: 6px 6px 0 0;
+}
+
+.second-reading-body {
+  padding: 0.3em 1.1em 0.6em;
+  overflow-x: auto;
+}
+
+.second-reading-body > :last-child {
+  margin-bottom: 0.3em;
+}
+
+@media (max-width: 600px) {
+  details.second-reading > summary {
+    padding: 0.5em 0.7em;
+  }
+
+  /* The marker says it on a phone; the kicker stays for screen readers */
+  .second-reading-kicker {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .second-reading-body {
+    padding: 0.2em 0.7em 0.5em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  details.second-reading > summary::after {
+    transition: none;
+  }
+}
+
+@media print {
+  details.second-reading > summary::after {
+    display: none;
+  }
+}
+
 /* A solution directly after its quick check sits close to it */
 .check.small-env + .solution.small-env {
   margin-top: -0.4em;

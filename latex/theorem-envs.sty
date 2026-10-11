@@ -163,6 +163,31 @@
 }
 
 % ======================================================================================
+% THE SECOND-READING FOLD
+% ======================================================================================
+% `::: {.second-reading title="..."}` folds on the website; on paper there is nothing
+% to fold, so filters/components.lua prints the content inline between these two
+% light rules, under a head with the web marker (a circled arrow) and the title:
+%   \begin{booksecondreading}{1}{<title>}   "Second reading · <title>"
+%   \begin{booksecondreading}{0}{<head>}    "<head>" (the default, "Second reading")
+% Rules and not an mdframed box on purpose: mdframed nests only two deep, and a fold
+% holds theorems, proofs and solutions that are already boxes -- the fold must add no
+% box level, and a meta-proof inside it must still break across pages.
+\providecolor{booksecondreading}{gray}{0.55}
+\newenvironment{booksecondreading}[2]{%
+    \par\addvspace{\medskipamount}%
+    \noindent{\color{booksecondreading!60}\rule{\linewidth}{0.5pt}}\par\nobreak
+    \noindent{\small\sffamily\bfseries\color{booksecondreading!80!black}%
+        $\circlearrowleft$\enspace
+        \ifnum#1=1 Second reading\enspace\textperiodcentered\enspace
+            {\mdseries\itshape #2}\else #2\fi}%
+    \par\nobreak\smallskip
+}{%
+    \par\nobreak\noindent{\color{booksecondreading!60}\rule{\linewidth}{0.5pt}}%
+    \par\addvspace{\medskipamount}%
+}
+
+% ======================================================================================
 % SMALL ENVIRONMENTS (proof, remark, solution, ...)
 % ======================================================================================
 % The same frame without a title bar: filters/theorems.lua writes the head

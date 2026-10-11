@@ -116,8 +116,42 @@ Engine checkers available as `engine:<name>`:
 - Labeled lists: `::: {.enumerate options="label=(VS\arabic*)"}` around a numbered list.
 - Figures: TikZ or tikz-cd (e.g. exported from quiver) as raw LaTeX. The PDF uses it directly;
   the website gets an SVG compiled once and cached in `_build/cache/tikz/`.
+- Second-reading fold: `::: {.second-reading title="Why the order is loss-free"}` … `:::`
+  around material a first reading may skip (a meta-proof whose statement stays on the
+  main line, edge cases, a long justification). See below.
 - Macros: add them to `latex/macros.tex` (`\def`, `\newcommand`, `\providecommand`,
   `\DeclareMathOperator`). The website's MathJax macros are generated from this file.
+
+### Second-reading fold
+
+```
+::: {.second-reading title="Why $P \to P$ needs no premise"}
+Anything: prose, theorems, proofs, derivations, displays.
+:::
+```
+
+- Web: a `<details class="second-reading">`, closed by default. Its summary shows a small
+  marker (↺), the kicker "Second reading" and the title; without `title` it reads
+  "Second reading". Styled with the theme's tokens, light and dark; works inside a section,
+  an exercise or a solution. A link to a label inside a closed fold opens the fold:
+  arriving with `#label`, following a reference on the page, the "Go to" link of a
+  preview. Printing the page opens every fold.
+- PDF: nothing to fold, so the content is printed inline between two light rules, under a
+  head with the same marker and the title (`booksecondreading` in
+  `latex/theorem-envs.sty`; rules, not a box, so the theorems and proofs inside keep their
+  frames and a long proof still breaks across pages).
+- Everything inside behaves exactly as outside: environments are numbered in sequence,
+  labelled, cited, previewed on hover and listed in `results.html`; derivations and math
+  are rendered; the search index includes the folded text; and the label scan records
+  the dependencies of proofs inside a fold (a folded proof still belongs to the result
+  stated just before it on the main line). The filter (`filters/components.lua`) turns the
+  fold into blocks of the enclosing list before `theorems.lua` runs.
+- A fold is a display device, **not** `.optional`: a result inside it may be cited by any
+  later proof, and the `optional` and `forward-deps` checks treat it as main line.
+- Math in `title` is written `$…$`: in an attribute a backslash escapes the next
+  character, so `\( … \)` would lose its backslashes.
+- Folds do not nest, and a fold holds no heading: either is a component error, which
+  `./build.py check` reports.
 
 ## Math rendering
 
@@ -148,7 +182,7 @@ build warnings.
 
 ## Reader features (no configuration)
 
-Solutions start folded and proofs can be folded; visited sections get a check mark and the
+Solutions and second-reading folds start folded and proofs can be folded; visited sections get a check mark and the
 start page offers "Continue reading"; ← and → go to the previous and next page; `/` opens
 search; the toolbar folds the side panes and switches light/dark; on touch screens a tap on
 a reference opens its preview. With `issues-url` set, each page links to a prefilled

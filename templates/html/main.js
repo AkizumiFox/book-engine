@@ -487,6 +487,7 @@
                 if (target) {
                     e.preventDefault();
                     revealTabFor(target);
+                    openFoldsAround(target);
                     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
                     target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
 
@@ -587,9 +588,43 @@
 
     /** Open any folded block containing the element. */
     function unfoldAround(element) {
+        openFoldsAround(element);
         for (let block = element?.closest('.is-folded'); block; block = block.parentElement?.closest('.is-folded')) {
             block.dispatchEvent(new Event('unfold'));
         }
+    }
+
+    /** Open every closed <details> (a second-reading fold) around the element. Returns
+     *  true if one had to open, so the caller knows the element's position changed. */
+    function openFoldsAround(element) {
+        let opened = false;
+        for (let d = element?.closest('details'); d; d = d.parentElement?.closest('details')) {
+            if (!d.open) { d.open = true; opened = true; }
+        }
+        return opened;
+    }
+
+    /** A link to something inside a closed fold on this page -- a reference, the "Go to"
+     *  link of a preview, a search hit -- opens the fold before the browser scrolls to it.
+     *  Printing shows the folds' content, as the PDF does. */
+    function setupFoldLinks() {
+        document.addEventListener('click', event => {
+            const link = event.target.closest?.('a[href*="#"]');
+            if (!link) return;
+            const url = new URL(link.href, location.href);
+            if (url.origin !== location.origin || url.pathname !== location.pathname || url.hash.length < 2) return;
+            openFoldsAround(document.getElementById(decodeURIComponent(url.hash.slice(1))));
+        }, true);
+        const closed = [];
+        window.addEventListener('beforeprint', () => {
+            document.querySelectorAll('details.second-reading:not([open])').forEach(d => {
+                d.open = true;
+                closed.push(d);
+            });
+        });
+        window.addEventListener('afterprint', () => {
+            closed.splice(0).forEach(d => { d.open = false; });
+        });
     }
 
     // ==========================================================================
@@ -739,7 +774,9 @@
     function markTargetFromHash() {
         if (location.hash.length > 1) {
             const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
-            if (target && revealTabFor(target)) target.scrollIntoView({ block: 'start' });
+            // A target in another tab or inside a closed fold moved: scroll to it again
+            const moved = target && revealTabFor(target);
+            if (target && (openFoldsAround(target) || moved)) target.scrollIntoView({ block: 'start' });
             markTarget(target);
         }
     }
@@ -1253,6 +1290,7 @@
 
         // Fold solutions (and let readers fold proofs), before anchors are resolved
         setupFolding();
+        setupFoldLinks();
         setupResultsFilters();
 
         // Link anchors on headings and theorems; highlight the linked element

@@ -175,6 +175,26 @@ def report(items) -> str:
     return "\n".join(f"{p}:{n}: {m}" for p, n, m in items)
 
 
+def run(book, labels, options=None):
+    """`./build.py check` plugin protocol (build/plugins.py): (errors, warnings).
+
+    Lints `_build/html` and the LaTeX logs under `_build/tmp`. Overfull boxes are
+    summarised in one warning line unless options {"overfull": false} turns them off.
+    """
+    options = options or {}
+    errors, overfull = find_violations(book.html_dir, book.build_dir / "tmp",
+                                       options.get("overfull", True))
+
+    def shown(items):
+        return [(Path(p).relative_to(book.root) if Path(p).is_relative_to(book.root) else p, n, m)
+                for p, n, m in items]
+    warnings = []
+    if overfull:
+        warnings.append(f"{len(overfull)} overfull box(es) in the LaTeX logs; "
+                        f"run `python3 tools/check_rendered.py` to list them")
+    return report(shown(errors)).splitlines(), warnings
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Lint the built HTML (visible raw TeX, ??, MathJax "
                                              "errors, stray fences) and the PDF build logs.")

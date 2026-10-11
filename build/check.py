@@ -17,26 +17,13 @@ from pathlib import Path
 from .book import Book
 from .external import lookup as lookup_external, looks_external, resolve as resolve_external
 from .manifest import scan_labels, load_scan
+from .plugins import disabled, run_checks
 from .utils import print_step, print_success, print_warning, print_error, print_info
 
 MIN_PANDOC = (3, 1)
 
 ENGINE_ROOT = Path(__file__).resolve().parent.parent
 
-
-def _tool(name):
-    """A checker in `tools/`, imported by path (`tools/` is not a package).
-
-    The same trick `build/extras.py` uses for `reading_path`: the checkers are
-    standalone scripts the author runs by hand, and the build reuses them rather
-    than keeping a second copy of the rule. Each one offers the same two
-    functions, `find_violations(labels)` and `report(violations)`.
-    """
-    spec = importlib.util.spec_from_file_location(
-        name, ENGINE_ROOT / "tools" / f"{name}.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 # (command, version flag, needed for)
 TOOLS = [
@@ -296,66 +283,60 @@ def check(book: Book, quiet: bool = False) -> bool:
 
     # Component problems found by filters/components.lua (bad plot expressions, widgets
     # without print content, ...)
-    for entry in scan["files"].values():
-        errors.extend(entry.get("errors", []))
+    if not disabled(book, "components"):
+        for entry in scan["files"].values():
+            errors.extend(entry.get("errors", []))
 
     # Cross-reference links in the built site must point at an existing page and anchor
     if book.html_dir.exists():
-        errors.extend(check_xref_links(book.html_dir))
-        errors.extend(check_moved_ids(book.config, book.html_dir))
+        if not disabled(book, "xref-links"):
+            errors.extend(check_xref_links(book.html_dir))
+        if not disabled(book, "moved-ids"):
+            errors.extend(check_moved_ids(book.config, book.html_dir))
 
-    # A result marked `.optional` prints a promise -- nothing later depends on it -- and
-    # the reading paths believe it, so no proof, claim or written solution may cite one.
-    optional_checker = _tool("check_optional")
-    errors.extend(optional_checker.report(optional_checker.find_violations(labels)).splitlines())
+    # The checkers in tools/: the engine's defaults -- no proof, claim or written solution
+    # may cite a result marked `.optional` (tools/check_optional.py), and no proof, proof
+    # idea or claim may cite a result the book proves later (tools/check_forward_deps.py;
+    # forward pointers from examples, remarks, exercises... are signposts) -- and the
+    # book's own, named in the config's `checks` (build/plugins.py).
+    plugin_errors, plugin_warnings = run_checks(book, labels)
+    errors.extend(plugin_errors)
+    warnings.extend(plugin_warnings)
 
-    # Macros (opt-in, config "macro-check"): no retired macro in the sources or the
-    # notation guides, and every macro used defined -- the guide is held to the same rule
-    # as the manuscript, so it cannot drift from it.
-    if "macro-check" in book.config:
-        macro_errors, macro_notices = _tool("check_macros").check_book(book)
-        errors.extend(macro_errors)
-        warnings.extend(macro_notices)
+    # Web vs PDF numbering (and "??" in the PDFs)
+    if not disabled(book, "numbering"):
+        book_aux = book.build_dir / "tmp" / "latex-book" / "book.aux"
+        newest_source = _newest_source_mtime(book)
+        if book_aux.exists():
+            if book_aux.stat().st_mtime < newest_source:
+                warnings.append("book PDF is older than the sources; run `./build.py book` for an accurate numbering check")
+            errors.extend(_compare_numbers(book, labels, book_aux))
+        elif not quiet:
+            print_info("No book build found; skipping book numbering check (run `./build.py book`)")
 
-    # Nor may a proof, a proof idea or a claim cite a result the book proves later: the
-    # argument would not be complete where it stands. Forward pointers from an example,
-    # an exercise, a solution, a remark, a warning or a statement are signposts and are
-    # left alone -- `tools/check_forward_deps.py` lists them with `--signposts`.
-    forward_checker = _tool("check_forward_deps")
-    errors.extend(forward_checker.report(forward_checker.find_violations(labels)).splitlines())
+        # References LaTeX could not resolve print as "??" in a PDF
+        for log in sorted((book.build_dir / "tmp").glob("**/*.log")):
+            for match in re.finditer(r"Reference `([^']+)' on page \d+ undefined", log.read_text(encoding="latin-1")):
+                errors.append(f"undefined reference {match.group(1)} in {log.relative_to(book.root).with_suffix('.pdf')}")
 
-    # Web vs PDF numbering
-    book_aux = book.build_dir / "tmp" / "latex-book" / "book.aux"
-    newest_source = _newest_source_mtime(book)
-    if book_aux.exists():
-        if book_aux.stat().st_mtime < newest_source:
-            warnings.append("book PDF is older than the sources; run `./build.py book` for an accurate numbering check")
-        errors.extend(_compare_numbers(book, labels, book_aux))
-    elif not quiet:
-        print_info("No book build found; skipping book numbering check (run `./build.py book`)")
-
-    # References LaTeX could not resolve print as "??" in a PDF
-    for log in sorted((book.build_dir / "tmp").glob("**/*.log")):
-        for match in re.finditer(r"Reference `([^']+)' on page \d+ undefined", log.read_text(encoding="latin-1")):
-            errors.append(f"undefined reference {match.group(1)} in {log.relative_to(book.root).with_suffix('.pdf')}")
-
-    section_aux_dir = book.build_dir / "tmp" / "pdf-single"
-    for aux_file in sorted(section_aux_dir.rglob("*.aux")) if section_aux_dir.exists() else []:
-        entry = scan["files"].get(f"{aux_file.parent.name}/{aux_file.stem}.html")
-        if entry:
-            errors.extend(_compare_numbers(book, labels, aux_file, only=set(entry["labels"])))
+        section_aux_dir = book.build_dir / "tmp" / "pdf-single"
+        for aux_file in sorted(section_aux_dir.rglob("*.aux")) if section_aux_dir.exists() else []:
+            entry = scan["files"].get(f"{aux_file.parent.name}/{aux_file.stem}.html")
+            if entry:
+                errors.extend(_compare_numbers(book, labels, aux_file, only=set(entry["labels"])))
 
     # Named results mentioned without a reference: a reference gives readers a link and a
     # preview, and makes the dependency graph exact
     source_of = {path: entry["source"] for path, entry in scan["files"].items()}
-    for label, info in sorted(labels.items()):
+    for label, info in sorted(labels.items()) if not disabled(book, "title-mentions") else ():
         for mentioned in info.get("mentions", []):
             title = labels[mentioned].get("title", mentioned)
             warnings.append(f"{source_of.get(info.get('file'), info.get('file'))}: {label} names "
                             f"\"{title}\" without a reference; consider @{mentioned}")
 
     # Spelling: warnings only, since new terms are often correct
-    for source, words in sorted(spelling_problems(book, scan).items()):
+    spelling = {} if disabled(book, "spelling") else spelling_problems(book, scan)
+    for source, words in sorted(spelling.items()):
         warnings.append(f"spelling in {source}: {', '.join(words)}")
 
     for warning in warnings:

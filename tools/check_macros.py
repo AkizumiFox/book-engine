@@ -39,8 +39,9 @@ TikZ code, where `\\x`, `\\i`, `\\c` ... are mostly `\\foreach` variables -- ins
 span, code block and formula there is an example of what to type; inline code is
 checked as math when it contains a backslash.
 
-Opt-in: `./build.py check` runs it only for a book whose config has a `macro-check`
-object (even an empty one, for rule 2 alone). By hand:
+Opt-in: `./build.py check` runs it for a book whose config lists `"engine:check_macros"`
+in `checks` (build/plugins.py); its settings are the config's `macro-check` (rule 2
+alone needs none). By hand:
 
     python3 tools/check_macros.py            # the book in the current directory
     python3 tools/check_macros.py --no-mathjax
@@ -271,6 +272,13 @@ def check_book(book, use_mathjax: bool = True) -> tuple[list[str], list[str]]:
     return check_files(book.root, manuscript, guides, retired, macros,
                        _mathjax_dir() if use_mathjax else None, settings.get("retired-hint", ""),
                        retired_only, settings.get("zero-matrix", ""))
+
+
+def run(book, labels, options=None):
+    """`./build.py check` plugin protocol (build/plugins.py): (errors, notices).
+    Settings come from the config's `macro-check`; options {"mathjax": false} skips
+    the definedness rule."""
+    return check_book(book, use_mathjax=(options or {}).get("mathjax", True))
 
 
 def main(argv=None) -> int:

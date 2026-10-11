@@ -209,6 +209,11 @@ def list_external_citations(labels):
     return 0
 
 
+def run(book, labels):
+    """`./build.py check` plugin protocol (build/plugins.py): (errors, warnings)."""
+    return report(find_violations(labels)).splitlines(), []
+
+
 def main():
     if not INDEX.exists():
         print(f"{INDEX} not found; run ./build.py html first", file=sys.stderr)

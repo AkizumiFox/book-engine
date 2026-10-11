@@ -90,6 +90,11 @@ def list_optional(labels: dict) -> int:
     return 0
 
 
+def run(book, labels):
+    """`./build.py check` plugin protocol (build/plugins.py): (errors, warnings)."""
+    return report(find_violations(labels)).splitlines(), []
+
+
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else list(argv)
     index = INDEX

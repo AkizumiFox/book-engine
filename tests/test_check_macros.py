@@ -182,12 +182,14 @@ from test_build import FixtureBookCase, run_build  # noqa: E402
 
 
 class TestOptInFromTheConfig(FixtureBookCase):
-    """`check` runs the macro check only for a book with a `macro-check` object."""
+    """`check` runs the macro check only when `checks` lists engine:check_macros; the
+    settings come from `macro-check`."""
 
     @classmethod
     def prepare(cls, book_dir: Path):
         config = json.loads((book_dir / "book.json").read_text())
         config["macro-check"] = {"retired": ["nR"], "retired-hint": "write \\mathbb{R}"}
+        config["checks"] = ["engine:check_macros"]
         (book_dir / "book.json").write_text(json.dumps(config, indent=2))
 
     def test_a_retired_macro_fails_check(self):
@@ -195,16 +197,18 @@ class TestOptInFromTheConfig(FixtureBookCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("src/ch01-basics/01-first.md:8: retired macro \\nR; write \\mathbb{R}", result.stdout)
 
-    def test_without_the_key_it_does_not_run(self):
-        config = json.loads((self.book_dir / "book.json").read_text())
-        del config["macro-check"]
-        (self.book_dir / "book.json").write_text(json.dumps(config, indent=2))
+    def test_settings_without_the_checks_entry_warn_and_do_not_run(self):
+        config_file = self.book_dir / "book.json"
+        original = config_file.read_text()
+        config = json.loads(original)
+        del config["checks"]
+        config_file.write_text(json.dumps(config, indent=2))
         try:
             result = run_build(self.book_dir, "check")
             self.assertNotIn("retired macro", result.stdout)
+            self.assertIn('"checks" does not list "engine:check_macros"', result.stdout)
         finally:
-            config["macro-check"] = {"retired": ["nR"]}
-            (self.book_dir / "book.json").write_text(json.dumps(config, indent=2))
+            config_file.write_text(original)
 
 
 if __name__ == "__main__":

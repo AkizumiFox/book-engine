@@ -209,6 +209,23 @@ class Book:
         return self.path(self.config.get("macros", "latex/macros.tex"))
 
     @property
+    def fitch_sty(self) -> "Path | None":
+        """The book's latex/fitch-book.sty (or one next to its macros file), if it ships one."""
+        for path in (self.path("latex/fitch-book.sty"), self.macros_file.parent / "fitch-book.sty"):
+            if path.is_file():
+                return path
+        return None
+
+    @property
+    def fitch_html(self) -> bool:
+        """Whether the website draws `nd` derivations as HTML (filters/fitch.lua) rather than
+        as SVGs: config "fitch-html", by default on when the book ships fitch-book.sty."""
+        setting = self.config.get("fitch-html")
+        if setting is None:
+            return self.fitch_sty is not None
+        return bool(setting)
+
+    @property
     def filters_dir(self) -> Path:
         return ENGINE_ROOT / "filters"
 

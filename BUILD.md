@@ -230,7 +230,7 @@ Config keys: `title`, `author`, `chapters` (directory strings, or `{"dir": …, 
 `styles`, `repo-url` (optional source link in the sidebar), `source-branch` (default
 `main`, for that link), `issues-url` (optional, e.g.
 `https://github.com/USER/REPO/issues/new`, for the "Report it" link), `prerender-math`
-(default true), `reading-paths`, `mention-exempt-titles`, `redirects`, `deploy-dir`,
+(default true), `fitch-html` (see below), `reading-paths`, `mention-exempt-titles`, `redirects`, `deploy-dir`,
 `deploy-repo`, `deploy-domain`, `deploy-push-url`, and:
 
 - `site-url` -- the address the site is published at when it is not the root of
@@ -366,8 +366,20 @@ per book (no cross-book search yet), and each book carries its own copy of the s
 assets (styles, scripts, MathJax fonts).
 
 Fitch-style derivations: a book that ships `latex/fitch-book.sty` (defining the `nd`
-environment) gets it loaded in every preamble, and `\begin{nd}` in a raw LaTeX block is
-compiled to an SVG for the web like a TikZ picture. Without that file nothing changes.
+environment) gets it loaded in every preamble, so the PDF typesets `\begin{nd}` with
+fitch.sty. On the web, `filters/fitch.lua` draws each derivation in HTML: a grid of line
+numbers, formulas and justifications, with the scope bars, assumption underlines and
+flags (`\open[x_0]`) as CSS borders in the theme's colours (dark mode included). Formulas,
+flags and rule names are left to MathJax with the book's macros, so they match the text,
+can be searched and copied; a rule macro (`\ai`, `\raa`, ...) is read from the book's
+fitch-book.sty and set with its `\rulename` macro (else `\mathrm`). The block may hold
+several derivations side by side (`\qquad`) or stacked (`\\`), inside `center`; marker
+comments (`% schema`, `% expect-invalid`) are comments. A block the filter cannot read
+(prose beside a derivation, `\havecont`, an unknown justification) is compiled to an SVG
+like a TikZ picture instead, with a warning naming the page and the reason. Config
+`"fitch-html"` turns the HTML drawing on or off; the default is on when the book ships
+fitch-book.sty (`false` sends every derivation down the SVG path). Without that file and
+key nothing changes.
 
 ## Automatic deploys
 

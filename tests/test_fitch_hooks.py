@@ -4,7 +4,8 @@ A book that does (Foundations) writes `\\begin{nd} ... \\end{nd}` in a raw LaTeX
 latex/preamble*.tex load the style if it exists, filters/tikz.lua compiles the
 derivation to an SVG for the web like a TikZ picture (in math mode, alt "Derivation"),
 and build/tikz.py crops it without standalone's `tikz` option. Here a five-line stand-in
-for the style is enough to exercise all three.
+for the style is enough to exercise all three. The book opts out of drawing derivations in
+HTML ("fitch-html": false, tests/test_fitch_html.py), so the web build takes the SVG path.
 """
 
 import re
@@ -42,6 +43,8 @@ class TestFitchHooks(FixtureBookCase):
 
     @classmethod
     def prepare(cls, book_dir: Path):
+        book_json = book_dir / "book.json"
+        book_json.write_text(book_json.read_text().replace('{', '{\n    "fitch-html": false,', 1))
         (book_dir / "latex").mkdir(exist_ok=True)
         (book_dir / "latex" / "fitch-book.sty").write_text(FITCH_STAND_IN)
         refs = book_dir / "src" / "ch02-more" / "01-refs.md"

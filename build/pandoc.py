@@ -59,6 +59,12 @@ def page_metadata(book: Book, page: Page, output_format: str, extra: Optional[di
             metadata["breadcrumb-chapter-title"] = page.title
             metadata["breadcrumb-chapter-url"] = f"{prefix}index.html"
         metadata["breadcrumb-page-title"] = page.title
+        if book.fitch_html:   # filters/fitch.lua: derivations as HTML, not SVG
+            metadata["fitch-html"] = True
+            if book.fitch_sty:
+                metadata["fitch-sty"] = str(book.fitch_sty)
+            macros = book.macros_file
+            metadata["fitch-rulename"] = macros.is_file() and "\\rulename" in macros.read_text(encoding="utf-8")
         metadata["breadcrumb-page-url"] = f"{prefix}{page.html_path}"
         metadata["pdf-url"] = f"{prefix}pdf/{Path(page.html_path).with_suffix('.pdf').as_posix()}"
         metadata["book-pdf-url"] = f"{prefix}book/book.pdf"
@@ -228,6 +234,8 @@ def build_pandoc_command(book: Book, page: Page, output_file: Path, output_forma
         "-f", MARKDOWN_FORMAT,
         "--lua-filter", str(filters / "format-visibility.lua"),
         "--lua-filter", str(filters / "components.lua"),
+        # fitch.lua (HTML only) turns derivations into HTML before tikz.lua would make SVGs of them
+        "--lua-filter", str(filters / "fitch.lua"),
         "--lua-filter", str(filters / "tikz.lua"),
         "--lua-filter", str(filters / "enumerate.lua"),
         "--lua-filter", str(filters / "theorems.lua"),

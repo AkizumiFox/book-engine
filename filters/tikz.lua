@@ -17,7 +17,9 @@ local cache_dir = nil
 local asset_prefix = "./"
 
 -- nd is a Fitch-style derivation (a book that ships latex/fitch-book.sty, which defines it):
--- an array, so it is compiled in math mode. Inert in a book without \begin{nd}.
+-- an array, so it is compiled in math mode. filters/fitch.lua, which runs first, draws most
+-- derivations in HTML; one reaches this filter only when that is off ("fitch-html": false)
+-- or the block could not be read there. Inert in a book without \begin{nd}.
 local PICTURE_ENVS = { "tikzpicture", "tikzcd", "nd" }
 
 -- Return the text from the first \begin{env} to the last matching \end{env}, or nil

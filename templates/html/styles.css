@@ -211,8 +211,8 @@ mjx-mover:has(> mjx-base mjx-utext[variant="bold"]) > mjx-over {
 
   /* Layout */
   --content-width: 39rem;   /* about 72-75 characters per line at 20px */
-  --sidebar-width: 16rem;
-  --toc-width: 15rem;
+  --sidebar-width: clamp(16rem, 15vw, 21rem);
+  --toc-width: clamp(15rem, 14vw, 20rem);
 }
 
 /* Dark theme: data-theme is set before first paint from the saved choice or the system
@@ -545,6 +545,99 @@ img {
 /* Black-on-transparent drawings: invert lightness, keep hues */
 [data-theme="dark"] .tikz-figure img.tikz {
   filter: invert(0.88) hue-rotate(180deg);
+}
+
+/* --- Fitch derivations drawn in HTML (filters/fitch.lua) ---
+   A grid of rows: line number | scope bars and formula | justification. The bars are
+   borders, so they follow the theme; the proportions are fitch.sty's (latex/fitch-book.sty):
+   a box indents by a fixed step, a bar starts a little below its box's first row, and
+   an assumption is underlined from its bar to just past the formula. */
+.fitch-display {
+  --fitch-rule: max(1px, 0.06em);
+  --fitch-indent: 1.6em;
+  --fitch-hsep: 0.6em;
+  --fitch-row: 1.85em;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  justify-content: safe center;  /* too wide for the screen: scrolls, from its left edge */
+  align-items: flex-start;
+  gap: 1.1em 3em;
+  margin: 1.25em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.fitch-display.fitch-left {
+  justify-content: flex-start;
+}
+
+.fitch-break {
+  flex-basis: 100%;
+  height: 0;
+}
+
+.fitch {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  flex: none;
+  color: var(--ink);
+  line-height: 1.3;
+  text-align: left;
+}
+
+.fitch-row {
+  display: contents;
+}
+
+.fitch-num,
+.fitch-formula,
+.fitch-just,
+.fitch-indent {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.fitch-num {
+  min-height: var(--fitch-row);
+  padding-right: 0.9em;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.fitch-body {
+  display: flex;
+  align-items: stretch;
+}
+
+.fitch-bar {
+  flex: none;
+  width: 0;
+  border-left: var(--fitch-rule) solid var(--ink);
+}
+
+/* the first row of a box: the bar starts lower, so sibling boxes stay apart */
+.fitch-bar-top {
+  margin-top: 0.42em;
+}
+
+.fitch-indent {
+  flex: none;
+  width: var(--fitch-indent);
+  justify-content: center;  /* a long flag overflows both ways, as in fitch.sty */
+}
+
+.fitch-formula {
+  flex: none;
+  padding: 0.12em var(--fitch-hsep);
+}
+
+.fitch-assumption {
+  border-bottom: var(--fitch-rule) solid var(--ink);
+}
+
+.fitch-just {
+  padding-left: 1.6em;
 }
 
 /* ==========================================================================
@@ -1496,9 +1589,12 @@ th {
 #quarto-container {
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--toc-width);
-  max-width: 92rem;
+  /* Full viewport width: the panes sit at the window edges and the text
+     column centres itself in the middle track (.content has its own
+     max-width), so wide and ultrawide windows do not crowd everything
+     into a central block. */
+  width: 100%;
   min-height: 100vh;
-  margin: 0 auto;
 }
 
 #quarto-content {

@@ -206,13 +206,19 @@ mjx-mover:has(> mjx-base mjx-utext[variant="bold"]) > mjx-over {
   /* Type */
   --font-body: 'STIX Two Text', 'STIX Two', 'Times New Roman', serif;
   --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
-  --text-size: 20px;
+  /* 20px up to a 1440px window, growing to 26px at 2560px: on a large screen the
+     text, and with it the column (sized in lines of text below), scales up instead
+     of leaving wide empty margins */
+  --text-size: clamp(20px, calc(12.3px + 0.536vw), 26px);
   --line-height: 1.7;
 
   /* Layout */
-  --content-width: 39rem;   /* about 72-75 characters per line at 20px */
-  --sidebar-width: clamp(16rem, 15vw, 21rem);
-  --toc-width: clamp(15rem, 14vw, 20rem);
+  /* Column widths are multiples of the text size, so a line holds about 72-75
+     characters whatever the size (31.2 x 20px = 39rem) */
+  --content-width: calc(var(--text-size) * 31.2);
+  --sidebar-width: clamp(16rem, 16vw, 24rem);
+  --toc-width: clamp(15rem, 14vw, 22rem);
+  --pane-text: calc(var(--text-size) * 0.72);
 }
 
 /* Dark theme: data-theme is set before first paint from the saved choice or the system
@@ -1457,7 +1463,7 @@ details.second-reading[open] > summary {
 
 /* --- Dependency graph page --- */
 .wide-page {
-  --content-width: 60rem;
+  --content-width: calc(var(--text-size) * 48);
 }
 
 .graph-intro {
@@ -1758,8 +1764,8 @@ th {
   overflow-y: auto;
   padding: 1.5rem 1rem 2rem 1.5rem;
   border-right: 1px solid var(--rule);
-  background: var(--paper);
-  font-size: 0.9rem;
+  background: var(--subtle);
+  font-size: var(--pane-text);
   line-height: 1.35;
   scrollbar-width: thin;
   scrollbar-color: var(--rule-strong) transparent;
@@ -2063,7 +2069,9 @@ th {
   height: 100vh;
   overflow-y: auto;
   padding: 2.75rem 1.25rem 2rem;
-  font-size: 0.82rem;
+  border-left: 1px solid var(--rule);
+  background: var(--subtle);
+  font-size: calc(var(--pane-text) * 0.91);
   line-height: 1.35;
 }
 
@@ -2450,11 +2458,11 @@ th {
 /* With panes folded away, the text column widens */
 [data-sidebar="collapsed"],
 [data-toc="collapsed"] {
-  --content-width: 46rem;
+  --content-width: calc(var(--text-size) * 36.8);
 }
 
 [data-sidebar="collapsed"][data-toc="collapsed"] {
-  --content-width: 54rem;
+  --content-width: calc(var(--text-size) * 43.2);
 }
 
 @media (min-width: 1201px) {
@@ -2487,11 +2495,11 @@ th {
 
   /* Only the left pane can be folded here; the right pane's setting does not apply */
   [data-toc="collapsed"]:not([data-sidebar="collapsed"]) {
-    --content-width: 39rem;
+    --content-width: calc(var(--text-size) * 31.2);
   }
 
   [data-sidebar="collapsed"][data-toc="collapsed"] {
-    --content-width: 46rem;
+    --content-width: calc(var(--text-size) * 36.8);
   }
 }
 
@@ -2538,7 +2546,7 @@ th {
 
   :root[data-sidebar],
   :root[data-toc] {
-    --content-width: 39rem;
+    --content-width: calc(var(--text-size) * 31.2);
   }
 
   #quarto-sidebar {
@@ -2869,6 +2877,7 @@ a.xref {
 @media print {
   :root {
     --text-size: 11pt;
+    --content-width: 39rem;
   }
 
   .topbar,

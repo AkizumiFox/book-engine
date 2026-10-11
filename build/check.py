@@ -177,6 +177,39 @@ def _newest_source_mtime(book: Book) -> float:
     return max((p.source.stat().st_mtime for p in book.pages), default=0)
 
 
+KNOWN_UNRESOLVED = "config/known-unresolved.json"
+
+
+def known_unresolved_path(book) -> str:
+    """The baseline file, relative to the book: config `known-unresolved`, else the default."""
+    return (getattr(book, "config", None) or {}).get("known-unresolved") or KNOWN_UNRESOLVED
+
+
+def known_unresolved(book: Book) -> tuple[dict, list[str]]:
+    """The accepted baseline of unresolved references, {(ref, source): why}, and the
+    problems with the file itself. A reference into a section that is planned but not yet
+    written is listed there with a reason, so check reports only new unresolved references
+    and a real mistake cannot hide among the expected ones. An entry that resolves (or is
+    gone) is a warning: delete it, or the baseline would later excuse the same reference
+    breaking again. The file is a list of {"why": ..., "references": [{"ref", "in"}, ...]}."""
+    name = known_unresolved_path(book)
+    path = book.root / name
+    if not path.exists():
+        return {}, []
+    known, problems = {}, []
+    try:
+        groups = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        return {}, [f"{name}: not valid JSON ({e})"]
+    for n, group in enumerate(groups, 1):
+        why = (group.get("why") or "").strip()
+        if not why:
+            problems.append(f"{name}: group {n} has no `why`")
+        for item in group.get("references", []):
+            known[(item["ref"].lstrip("@"), item["in"])] = why
+    return known, problems
+
+
 def check(book: Book, quiet: bool = False) -> bool:
     """Validate labels and references; compare PDF numbering if PDFs have been built."""
     scan_labels(book)
@@ -205,6 +238,9 @@ def check(book: Book, quiet: bool = False) -> bool:
         if not ext["available"]:
             warnings.append(f"external book '{prefix}' ({ext['title']}): {ext['problem']}; "
                             f"its references are not checked")
+    known, known_errors = known_unresolved(book)
+    errors.extend(known_errors)
+    known_seen = set()
     for entry in sorted(scan["files"].values(), key=lambda e: e["source"]):
         for ref in sorted(set(entry["refs"])):
             if ref in labels:
@@ -219,7 +255,16 @@ def check(book: Book, quiet: bool = False) -> bool:
                 errors.append(f"unresolved reference @{ref} in {entry['source']}: "
                               f"no external book '{ref.split(':', 1)[0]}' in the config's external-books")
             elif re.match(r"^[A-Za-z]+-", ref):
-                errors.append(f"unresolved reference @{ref} in {entry['source']}")
+                if (ref, entry["source"]) in known:
+                    known_seen.add((ref, entry["source"]))
+                else:
+                    errors.append(f"unresolved reference @{ref} in {entry['source']}")
+    for ref, source in sorted(set(known) - known_seen):
+        warnings.append(f"{known_unresolved_path(book)}: @{ref} in {source} no longer occurs "
+                        f"unresolved; delete it")
+    if known_seen:
+        print_info(f"{len(known_seen)} known unresolved reference(s) accepted in "
+                   f"{known_unresolved_path(book)}")
 
     # Component problems found by filters/components.lua (bad plot expressions, widgets
     # without print content, ...)

@@ -267,6 +267,35 @@ class TestSecondReadingBuild(FixtureBookCase):
         self.assertEqual(errors, [], check_rendered.report(errors))
 
 
+class TestGatesReadFoldsAsMainLine(FixtureBookCase):
+    """A fold is not .optional and not exempt: a proof inside one that cites a later
+    section, or an optional result, fails `check` exactly as it would outside."""
+
+    @classmethod
+    def prepare(cls, book_dir: Path):
+        refs = book_dir / "src" / "ch02-more" / "01-refs.md"
+        refs.write_text(refs.read_text().replace("A broken reference: @thm-missing.\n", ""))
+        second = book_dir / "src" / "ch01-basics" / "02-second.md"
+        second.write_text(second.read_text() + """
+::: {#thm-folded-gates}
+Stated on the main line.
+:::
+
+::: {.second-reading}
+::: {.proof}
+By @thm-area and @thm-aside.
+:::
+:::
+""")
+
+    def test_both_gates_fire(self):
+        result = run_build(self.book_dir, "check")
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("thm-folded-gates cites thm-area in its proof", result.stdout)
+        self.assertIn("thm-folded-gates cites thm-aside in its proof, but thm-aside is marked optional",
+                      result.stdout)
+
+
 class TestNestedFoldFailsCheck(FixtureBookCase):
 
     @classmethod

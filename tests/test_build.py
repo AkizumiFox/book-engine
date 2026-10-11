@@ -339,6 +339,14 @@ class TestHtmlBuild(FixtureBookCase):
         entry = (self.html / "theorems" / "ch01-basics" / "thm-main.json").read_text()
         self.assertIn("mjx-container", entry)                         # tooltip previews too
 
+    def test_short_bold_greek_is_tagged_for_the_stylesheet(self):
+        """Bold upright Greek is drawn from a web font MathJax cannot measure; the short
+        letters are marked so the stylesheet pads them for their real height."""
+        page = self.page("ch01-basics/02-second.html")
+        self.assertRegex(page, r'<mjx-utext[^>]* variant="bold" data-short="">\U0001D6C6</mjx-utext>')  # epsilon: short
+        self.assertRegex(page, r'<mjx-utext[^>]* variant="bold">\U0001D6C3</mjx-utext>')               # beta: tall
+        self.assertTrue((self.html / "fonts" / "stix-two-math-bold-greek.woff2").exists())
+
     def test_unchanged_rebuild_skips_pages(self):
         result = run_build(self.book_dir, "html")
         self.assertEqual(result.returncode, 0, result.stdout)

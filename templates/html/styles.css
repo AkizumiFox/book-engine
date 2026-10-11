@@ -10,6 +10,38 @@
    subsets and weights a page uses.
    ========================================================================== */
 
+/* Bold upright Greek (vectors and matrices such as the bold beta): MathJax's TeX fonts have no
+   such glyphs and fall back to whatever system font has them, often a thin or missing one.
+   Serve them from STIX Two Math, subset to Mathematical Bold Greek (U+1D6A8-1D6E1, 7 KB),
+   which matches the body text. */
+@font-face {
+  font-family: 'STIX Two Math Bold Greek';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/stix-two-math-bold-greek.woff2') format('woff2');
+  unicode-range: U+1D6A8-1D6E1;
+}
+mjx-utext[variant="bold"] {
+  font-family: 'STIX Two Math Bold Greek', 'STIX Two Math', 'Cambria Math', serif !important;
+  font-weight: normal !important;
+  font-size: 108% !important;
+  /* MathJax cannot measure these glyphs when it prerenders, and pads them for a tall
+     letter; accents placed on top then float. Pad for the real glyph height instead. */
+  padding: 0.6em 0 0.16em 0 !important;
+}
+/* Short letters (epsilon, rho, ...), marked data-short by build/math.py. */
+mjx-utext[variant="bold"][data-short] {
+  padding-top: 0.36em !important;
+}
+/* Accents over these letters (the hat on beta, epsilon): lower them onto the glyph. The padding
+   above already brings them down for the short letters. */
+mjx-mover:has(> mjx-base mjx-utext[variant="bold"]) > mjx-over {
+  /* A relative nudge, not a fixed margin: MathJax gives each accent its own offset (a hat
+     and a tilde differ), and all of them are too high by about the same amount. */
+  transform: translateY(0.25em);
+}
+
 @font-face {
   font-family: 'STIX Two Text';
   font-style: italic;

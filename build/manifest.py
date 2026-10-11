@@ -420,19 +420,26 @@ def page_description(text: str, limit: int = 160) -> str:
 
 
 def generate_site_files(book: Book):
-    """robots.txt and sitemap.xml (when deploy-domain is set) and a 404 page."""
-    domain = (book.config.get("deploy-domain") or "").strip()
-    if domain:
+    """robots.txt and sitemap.xml (when the site's address is known) and a 404 page.
+
+    A book published under a sub-path (`site-url`, a library of books on one origin)
+    gets its sitemap but no robots.txt, which only counts at the root of a domain: the
+    library's own root carries that.
+    """
+    site_url = book.site_url
+    if site_url:
         from .extras import extra_page_names   # local import: extras imports this module
         paths = [p.html_path for p in book.pages] + extra_page_names(book)
-        urls = "\n".join(f"  <url><loc>https://{domain}/{path}</loc></url>" for path in paths)
+        urls = "\n".join(f"  <url><loc>{site_url}{path}</loc></url>" for path in paths)
         _write_if_changed(book.html_dir / "sitemap.xml",
                           '<?xml version="1.0" encoding="UTF-8"?>\n'
                           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
                           f"{urls}\n</urlset>\n")
-        _write_if_changed(book.html_dir / "robots.txt", f"User-agent: *\nAllow: /\nSitemap: https://{domain}/sitemap.xml\n")
-    # GitHub Pages serves 404.html for unknown paths at any depth, so links are absolute
-    root = "/"
+        if book.site_path == "/":
+            _write_if_changed(book.html_dir / "robots.txt", f"User-agent: *\nAllow: /\nSitemap: {site_url}sitemap.xml\n")
+    # GitHub Pages serves 404.html for unknown paths at any depth, so links are absolute:
+    # from the book's own path on its origin (site-url), "/" by default
+    root = book.site_path
     title = html_escape(book.title)
     _write_if_changed(book.html_dir / "404.html", f"""<!DOCTYPE html>
 <html lang="en">

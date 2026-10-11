@@ -42,8 +42,8 @@ def page_metadata(book: Book, page: Page, output_format: str, extra: Optional[di
         "engine-root": str(ENGINE_ROOT),
         "source-path": str(page.source.relative_to(book.root)),
     }
-    if book.config.get("deploy-domain"):
-        metadata["page-url"] = f"https://{book.config['deploy-domain'].strip()}/{page.html_path}"
+    if book.site_url:
+        metadata["page-url"] = f"{book.site_url}{page.html_path}"
     if book.labels_file.exists():
         metadata["crossref-labels-file"] = str(book.labels_file)
 

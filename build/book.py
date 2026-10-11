@@ -178,6 +178,29 @@ class Book:
         return ".:" + ":".join(f"{r}//" for r in roots) + ":"
 
     @property
+    def site_url(self) -> str:
+        """
+        The address the website is published at, ending in "/", or "" if unknown.
+
+        `site-url` in the config, for a book published under a sub-path of a shared
+        origin (a library: https://books.example.com/analysis/); otherwise the root of
+        `deploy-domain`. Canonical links, the sitemap and the PDF's links to runnable
+        cells are built on it. Everything else in the site is relative, so the same
+        output works at any path.
+        """
+        url = (self.config.get("site-url") or "").strip()
+        if not url:
+            domain = (self.config.get("deploy-domain") or "").strip()
+            url = f"https://{domain}/" if domain else ""
+        return url if not url or url.endswith("/") else url + "/"
+
+    @property
+    def site_path(self) -> str:
+        """The path part of site_url ("/" for a book at the root of its domain)."""
+        match = re.match(r"^[a-z]+://[^/]+(/.*)?$", self.site_url)
+        return (match.group(1) or "/") if match else "/"
+
+    @property
     def environment_settings(self) -> dict:
         return self.config.get("environment_settings", {})
 

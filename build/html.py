@@ -185,7 +185,7 @@ def build_html(book: Book, specific_file: Optional[Path] = None, dev_reload: boo
         extra["math-prerendered"] = True
         extra["mathjax-version"] = MATHJAX_VERSION
 
-    domain = (book.config.get("deploy-domain") or "").strip()
+    site_url = book.site_url
     tasks = []
     for page in pages:
         output_file = book.html_dir / page.html_path
@@ -193,8 +193,8 @@ def build_html(book: Book, specific_file: Optional[Path] = None, dev_reload: boo
         description = page_description(scan["files"].get(page.html_path, {}).get("description", ""))
         if description:
             page_extra["description"] = description
-        if domain:
-            page_extra["canonical-url"] = f"https://{domain}/{page.html_path}"
+        if site_url:
+            page_extra["canonical-url"] = f"{site_url}{page.html_path}"
         metadata = page_metadata(book, page, "html", page_extra)
         fingerprint = page_fingerprint(book, page, metadata, engine, scan, labels)
         if store.unchanged(page.html_path, fingerprint, output_file):

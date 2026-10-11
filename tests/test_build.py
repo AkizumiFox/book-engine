@@ -447,5 +447,42 @@ class TestForwardProofFailsCheck(FixtureBookCase):
         self.assertNotIn("thm-aside is proved later", result.stdout)
 
 
+class TestSiteUrl(FixtureBookCase):
+    """`site-url`: a book published under a sub-path of a shared origin (a library)."""
+
+    @classmethod
+    def prepare(cls, book_dir: Path):
+        config = json.loads((book_dir / "book.json").read_text())
+        config["site-url"] = "https://books.example.com/fixture"
+        config["deploy-domain"] = "ignored.example.com"
+        (book_dir / "book.json").write_text(json.dumps(config, indent=2))
+
+    def test_site_url_and_path(self):
+        self.assertEqual(self.book.site_url, "https://books.example.com/fixture/")
+        self.assertEqual(self.book.site_path, "/fixture/")
+
+    def test_canonical_links_use_the_sub_path(self):
+        page = self.page("ch01-basics/01-first.html")
+        self.assertIn('rel="canonical" href="https://books.example.com/fixture/ch01-basics/01-first.html"', page)
+        self.assertIn('href="../styles.css', page)               # the page itself stays relative
+
+    def test_sitemap_but_no_robots_under_a_sub_path(self):
+        sitemap = (self.html / "sitemap.xml").read_text()
+        self.assertIn("<loc>https://books.example.com/fixture/index.html</loc>", sitemap)
+        self.assertNotIn("ignored.example.com", sitemap)
+        self.assertFalse((self.html / "robots.txt").exists())
+
+    def test_404_links_from_the_sub_path(self):
+        page = (self.html / "404.html").read_text()
+        self.assertIn('href="/fixture/styles.css"', page)
+        self.assertIn('href="/fixture/index.html"', page)
+
+    def test_deploy_domain_alone_is_the_root(self):
+        book = Book(self.book_dir)
+        book.config.pop("site-url")
+        self.assertEqual(book.site_url, "https://ignored.example.com/")
+        self.assertEqual(book.site_path, "/")
+
+
 if __name__ == "__main__":
     unittest.main()

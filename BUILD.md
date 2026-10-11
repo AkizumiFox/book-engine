@@ -262,6 +262,15 @@ Config keys: `title`, `author`, `chapters` (directory strings, or `{"dir": …, 
   `redirects`, whose stubs keep the fragment too.)
 - `known-unresolved`, `checks`, `checks-disable`, `macro-check` -- see "Checks".
 
+**Config overlay.** `./build.py html --config-overlay preview.json` (any command) builds
+with config keys overridden from a JSON file, without editing the book's config. The
+overlay is merged as a JSON Merge Patch: objects merge key by key (so
+`{"external-books": {"la": {"url": "../la/"}}}` changes only that book's `url`), `null`
+removes a key (`{"deploy-domain": null}`), and any other value, lists included, replaces
+the config's. The overlay counts as part of the config for the "unchanged page" check, so
+a build with a different overlay (or none) rebuilds the affected pages. `serve` re-reads
+the overlay file when it changes.
+
 Fitch-style derivations: a book that ships `latex/fitch-book.sty` (defining the `nd`
 environment) gets it loaded in every preamble, and `\begin{nd}` in a raw LaTeX block is
 compiled to an SVG for the web like a TikZ picture. Without that file nothing changes.

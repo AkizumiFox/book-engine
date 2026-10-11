@@ -76,6 +76,8 @@ def _handler(book: Book, hub: ReloadHub):
 def _watched_files(book: Book) -> dict[Path, float]:
     roots = [book.src_dir, ENGINE_ROOT / "filters", ENGINE_ROOT / "templates" / "html", book.macros_file,
              book.config_file] + [c.directory for c in book.chapters]
+    if isinstance(book.overlay_source, (str, Path)):
+        roots.append(Path(book.overlay_source))
     snapshot = {}
     for root in roots:
         paths = [root] if root.is_file() else (root.rglob("*") if root.is_dir() else [])
@@ -111,7 +113,7 @@ def serve(book: Book, port: int = 8000):
             snapshot = current
             try:
                 # A fresh Book picks up config edits and added or removed pages
-                book = Book(book.root)
+                book = Book(book.root, overlay=book.overlay_source)
                 if build_html(book, dev_reload=True):
                     hub.notify()
             except Exception as e:  # keep serving after a broken edit

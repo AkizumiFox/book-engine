@@ -70,6 +70,7 @@ Examples:
     ./build.py deploy --push       Build, check, copy to site/ and push
     ./build.py clean               Remove _build
     ./build.py html --book ../other-book   Build a different book with this engine
+    ./build.py html --config-overlay preview.json   Build with config keys overridden
         """,
     )
     parser.add_argument("command", choices=["html", "pdf", "book", "all", "serve", "check", "doctor",
@@ -80,6 +81,9 @@ Examples:
                              "default: the book whose build.py ran this, else the current directory")
     parser.add_argument("--no-build", action="store_true", help="deploy: copy existing output without building")
     parser.add_argument("--push", action="store_true", help="deploy: commit and push from the deploy directory")
+    parser.add_argument("--config-overlay", metavar="FILE", default=None,
+                        help="JSON object merged over the book's config for this run "
+                             "(objects merge, null removes a key; the config file is not changed)")
     parser.add_argument("--port", type=int, default=8000, help="serve: port (default 8000)")
     args = parser.parse_args(argv)
 
@@ -90,9 +94,14 @@ Examples:
 
     book_dir = args.book or default_book or Path.cwd()
     try:
-        book = Book(_book_root(str(book_dir)))
+        book = Book(_book_root(str(book_dir)), overlay=args.config_overlay)
+    except ValueError as e:
+        print_error(str(e))
+        sys.exit(2)
     except FileNotFoundError as e:
         print_error(str(e))
+        if str(e).startswith("Config overlay"):
+            sys.exit(2)
         print_info("Run from a book's directory (its own build.py), or pass --book DIR "
                    "(the engine's demo book: --book starter)")
         sys.exit(2)

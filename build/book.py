@@ -8,6 +8,11 @@ at the same relative path.
 
 Config lookup: <root>/book.json, then <root>/config/config.json.
 All paths in the config are relative to the book root.
+
+A config overlay (`Book(root, overlay=...)`, `./build.py --config-overlay FILE`) is a
+JSON object merged over the config for one build without editing it -- a library build
+sets `site-url` and `external-books` this way. The merge is a JSON Merge Patch (RFC 7396):
+objects merge key by key, `null` removes a key, anything else replaces the value.
 """
 
 import hashlib
@@ -86,8 +91,43 @@ def extract_title(path: Path) -> str:
     return path.stem.replace("-", " ").replace("_", " ").title()
 
 
+def merge_patch(base, patch):
+    """`base` with `patch` merged over it (JSON Merge Patch, RFC 7396); neither is changed.
+
+    Objects merge recursively, a `null` in the patch removes the key, any other value
+    (lists included) replaces it.
+    """
+    if not isinstance(patch, dict):
+        return patch
+    merged = dict(base) if isinstance(base, dict) else {}
+    for key, value in patch.items():
+        if value is None:
+            merged.pop(key, None)
+        else:
+            merged[key] = merge_patch(merged.get(key), value)
+    return merged
+
+
+def load_overlay(value) -> dict:
+    """An overlay given as a dict, or a path to a JSON file holding an object."""
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return value
+    path = Path(value)
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except OSError as error:
+        raise FileNotFoundError(f"Config overlay {path}: {error.strerror or error}") from error
+    except ValueError as error:
+        raise ValueError(f"Config overlay {path} is not valid JSON ({error})") from error
+    if not isinstance(data, dict):
+        raise ValueError(f"Config overlay {path} must hold a JSON object")
+    return data
+
+
 class Book:
-    def __init__(self, root: Path | str):
+    def __init__(self, root: Path | str, overlay: dict | str | Path | None = None):
         self.root = Path(root).resolve()
         for candidate in CONFIG_CANDIDATES:
             if (self.root / candidate).exists():
@@ -96,6 +136,11 @@ class Book:
         else:
             raise FileNotFoundError(f"No book config ({' or '.join(CONFIG_CANDIDATES)}) in {self.root}")
         self.config = json.loads(self.config_file.read_text(encoding="utf-8"))
+        # The overlay as given (a path stays a path, so a fresh Book can re-read it)
+        self.overlay_source = overlay
+        self.overlay = load_overlay(overlay)
+        if self.overlay:
+            self.config = merge_patch(self.config, self.overlay)
 
     # -- Paths ---------------------------------------------------------------
 
@@ -287,4 +332,6 @@ class Book:
             if path.is_file():
                 digest.update(str(path).encode())
                 digest.update(path.read_bytes())
+        if self.overlay:   # an overlay changes the config as much as an edit would
+            digest.update(json.dumps(self.overlay, sort_keys=True).encode())
         return digest.hexdigest()

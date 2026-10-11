@@ -304,7 +304,8 @@ body {
 .skip-link {
   position: absolute;
   left: 1rem;
-  top: -3rem;
+  top: 0;
+  transform: translateY(-110%);   /* fully off-screen at any text size */
   z-index: 2000;
   padding: 0.4rem 0.8rem;
   background: var(--paper);
@@ -314,6 +315,7 @@ body {
 
 .skip-link:focus {
   top: 1rem;
+  transform: none;
 }
 
 :focus-visible {
@@ -1730,6 +1732,28 @@ th {
   border-bottom: 2px solid var(--rule-strong);
 }
 
+/* Side-pane scrollbars stay out of sight until the pointer is over the pane
+   (always faintly shown where there is no hover, e.g. touch screens) */
+#quarto-sidebar,
+#quarto-margin-sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+#quarto-sidebar:hover,
+#quarto-sidebar:focus-within,
+#quarto-margin-sidebar:hover,
+#quarto-margin-sidebar:focus-within {
+  scrollbar-color: color-mix(in srgb, var(--ink) 22%, transparent) transparent;
+}
+
+@media (hover: none) {
+  #quarto-sidebar,
+  #quarto-margin-sidebar {
+    scrollbar-color: color-mix(in srgb, var(--ink) 15%, transparent) transparent;
+  }
+}
+
 /* ==========================================================================
    Layout: sidebar | content | table of contents
    ========================================================================== */
@@ -1768,7 +1792,7 @@ th {
   font-size: var(--pane-text);
   line-height: 1.35;
   scrollbar-width: thin;
-  scrollbar-color: var(--rule-strong) transparent;
+  scrollbar-color: transparent transparent;
 }
 
 .sidebar-header {

@@ -309,6 +309,14 @@ def check(book: Book, quiet: bool = False) -> bool:
     optional_checker = _tool("check_optional")
     errors.extend(optional_checker.report(optional_checker.find_violations(labels)).splitlines())
 
+    # Macros (opt-in, config "macro-check"): no retired macro in the sources or the
+    # notation guides, and every macro used defined -- the guide is held to the same rule
+    # as the manuscript, so it cannot drift from it.
+    if "macro-check" in book.config:
+        macro_errors, macro_notices = _tool("check_macros").check_book(book)
+        errors.extend(macro_errors)
+        warnings.extend(macro_notices)
+
     # Nor may a proof, a proof idea or a claim cite a result the book proves later: the
     # argument would not be complete where it stands. Forward pointers from an example,
     # an exercise, a solution, a remark, a warning or a statement are signposts and are

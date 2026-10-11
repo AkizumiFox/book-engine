@@ -142,6 +142,34 @@ def check_xref_links(html_dir: Path) -> list[str]:
     return problems
 
 
+def check_moved_ids(config: dict, html_dir: Path) -> list[str]:
+    """Each moved anchor (config "moved-ids") must leave a page that still exists and no
+    longer has the id, and land on a page that has the new id: otherwise the forwarding
+    script either never runs or sends readers to nothing."""
+    problems = []
+    for old_page, entries in sorted((config.get("moved-ids") or {}).items()):
+        old_file = html_dir / old_page
+        if not old_file.exists():
+            problems.append(f"moved-ids: page {old_page} not found (use \"redirects\" for a page that is gone)")
+            continue
+        old = _LinkCollector()
+        old.feed(old_file.read_text(encoding="utf-8"))
+        for old_id, new in sorted(entries.items()):
+            new_page, _, new_id = new.partition("#")
+            new_id = new_id or old_id
+            if old_id in old.ids:
+                problems.append(f"moved-ids: #{old_id} is still on {old_page}")
+            new_file = html_dir / new_page
+            if not new_file.exists():
+                problems.append(f"moved-ids: #{old_id} on {old_page} points to {new_page}, which is not found")
+                continue
+            target = _LinkCollector()
+            target.feed(new_file.read_text(encoding="utf-8"))
+            if new_id not in target.ids:
+                problems.append(f"moved-ids: #{old_id} on {old_page} points to {new_page}, which has no #{new_id}")
+    return problems
+
+
 def spelling_problems(book: Book, scan: dict) -> dict[str, list[str]]:
     """
     Words aspell does not know, per source file (prose only: formulas, code and raw LaTeX
@@ -274,6 +302,7 @@ def check(book: Book, quiet: bool = False) -> bool:
     # Cross-reference links in the built site must point at an existing page and anchor
     if book.html_dir.exists():
         errors.extend(check_xref_links(book.html_dir))
+        errors.extend(check_moved_ids(book.config, book.html_dir))
 
     # A result marked `.optional` prints a promise -- nothing later depends on it -- and
     # the reading paths believe it, so no proof, claim or written solution may cite one.

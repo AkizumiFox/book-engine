@@ -25,6 +25,22 @@
             if (stored.toc === 'collapsed') root.dataset.toc = 'collapsed';
         })();
     </script>
+    $if(moved-ids)$
+    <script>
+        // Anchors that moved to another page: an old deep link is sent on (config "moved-ids").
+        (function () {
+            var moved = {$for(moved-ids)$"$moved-ids.id$": "$moved-ids.target$"$sep$, $endfor$};
+            function follow() {
+                var id = decodeURIComponent(location.hash.slice(1));
+                if (Object.prototype.hasOwnProperty.call(moved, id) && !document.getElementById(id)) {
+                    location.replace(moved[id]);
+                }
+            }
+            follow();
+            window.addEventListener('hashchange', follow);
+        })();
+    </script>
+    $endif$
     $if(description)$
     <meta name="description" content="$description$">
     $endif$

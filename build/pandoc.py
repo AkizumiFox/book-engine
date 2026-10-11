@@ -85,6 +85,9 @@ def page_metadata(book: Book, page: Page, output_format: str, extra: Optional[di
                 "body": f"{where}\n\nWhat is wrong (quote the sentence or formula):\n\n\nWhat it should say:\n",
             }, quote_via=quote)
             metadata["report-url"] = f"{book.config['issues-url']}?{query}"
+        moved = moved_ids(book.config, page.html_path, prefix)
+        if moved:
+            metadata["moved-ids"] = moved
         for direction in ("prev", "next"):
             neighbour = page.neighbours.get(direction)
             if neighbour:
@@ -96,6 +99,17 @@ def page_metadata(book: Book, page: Page, output_format: str, extra: Optional[di
 
     metadata.update(extra or {})
     return metadata
+
+
+def moved_ids(config: dict, html_path: str, prefix: str = "") -> list[dict]:
+    """The anchors that used to be on this page and now live on another: config
+    "moved-ids" maps a page (relative to the site root) to {old id: new page}, where the
+    new page may name a new id ("page.html#new-id"); without one the id is unchanged.
+    The template turns the list into a script that sends an old deep link on, so links
+    from outside the book survive a section being split or moved."""
+    entries = (config.get("moved-ids") or {}).get(html_path) or {}
+    return [{"id": old, "target": prefix + (new if "#" in new else f"{new}#{old}")}
+            for old, new in sorted(entries.items())]
 
 
 def plain_label(title: str) -> str:

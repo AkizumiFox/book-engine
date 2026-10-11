@@ -19,7 +19,9 @@ def _git(deploy_dir, *args) -> subprocess.CompletedProcess:
 
 REDIRECT_PAGE = """<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><title>Moved</title>
-<link rel="canonical" href="{target}"><meta http-equiv="refresh" content="0; url={target}">
+<link rel="canonical" href="{target}">
+<script>location.replace("{target}" + location.hash);</script>
+<meta http-equiv="refresh" content="0; url={target}">
 </head><body><p>This page has moved to <a href="{target}">{target}</a>.</p></body></html>
 """
 

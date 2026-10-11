@@ -24,3 +24,8 @@ docs/
 *.toc
 *.synctex.gz
 templates/latex/*.pdf
+*.fls
+*.fdb_latexmk
+
+# Local Python environment
+.venv/

@@ -396,6 +396,13 @@ class TestFullBuild(FixtureBookCase):
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn("Check passed", result.stdout)
 
+    def test_rendered_output_is_clean(self):
+        """tools/check_rendered.py: no raw TeX, ??, MathJax error or lost fence on any page,
+        no undefined control sequence in any LaTeX log."""
+        from tools import check_rendered
+        errors, _ = check_rendered.find_violations(self.html, self.book.build_dir / "tmp", overfull=False)
+        self.assertEqual(errors, [], check_rendered.report(errors))
+
     def test_pdfs_exist(self):
         self.assertTrue(self.book.book_pdf.exists())
         self.assertTrue((self.book.pdf_dir / "ch01-basics" / "01-first.pdf").exists())

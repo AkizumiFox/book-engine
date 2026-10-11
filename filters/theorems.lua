@@ -835,6 +835,103 @@ local function load_global_labels(meta)
     end
 end
 
+-- Other books' labels, cited as @prefix:label (config "external-books"; build/external.py
+-- writes the file: per prefix the book's title, short name, url, formats, whether its
+-- registry could be read, and the labels of it this book cites).
+local external_books = {}
+
+local function load_external_books(meta)
+    local path = meta["external-books-file"]
+    if not path then return end
+    local f = io.open(pandoc.utils.stringify(path), "r")
+    if not f then return end
+    local data = pandoc.json.decode(f:read("*all"), false)
+    f:close()
+    external_books = type(data) == "table" and data or {}
+end
+
+local function html_escape(s)
+    return (s:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"))
+end
+
+local LATEX_SPECIALS = { ["\\"] = "\\textbackslash{}", ["^"] = "\\textasciicircum{}",
+                         ["~"] = "\\textasciitilde{}" }
+local function latex_escape(s)
+    return (s:gsub("[\\%%#&_{}%$%^~]", function(c) return LATEX_SPECIALS[c] or ("\\" .. c) end))
+end
+
+-- "{title}, {ref}" with the placeholders filled; unknown placeholders stay as written
+local function fill(template, values)
+    return (template:gsub("{(%w+)}", function(key) return values[key] end))
+end
+
+-- "Theorem 12.4", or "Example (Title)" for an unnumbered target: the same text a local
+-- reference prints
+local function external_ref_text(info, latex)
+    local name = info.type_name or ""
+    if info.number and info.number ~= "" then
+        return name .. (latex and "~" or " ") .. info.number
+    end
+    local title = latex and info.title_latex or info.title_html
+    if title and title ~= "" then return name .. " (" .. title .. ")" end
+    return name
+end
+
+-- A reference into another book. Returns (inline, handled): handled is false when the id
+-- is not @prefix:label for a configured prefix; inline is nil when the label is unknown
+-- (the reference is then left as written, like an unresolved local one).
+-- In-text @la:thm-x reads "Linear Algebra, Theorem 12.4" ("format"); bracketed
+-- [@la:thm-x] reads "[LA, Theorem 12.4]" ("short-format").
+local function external_reference(citation)
+    local prefix, label = citation.id:match("^(%a[%w_]*):(.+)$")
+    local ext = prefix and external_books[prefix]
+    if not ext then return nil, false end
+    local info = ext.labels and ext.labels[label]
+    if ext.available and not info then
+        io.stderr:write("Warning: unresolved reference @" .. citation.id .. " (no such label in "
+                        .. tostring(ext.title) .. ")\n")
+        return nil, true
+    end
+    local template = citation.mode == "NormalCitation" and ext["short-format"] or ext.format
+    local url = ext.url or ""
+    local absolute = url:match("^%a[%w+.-]*:") ~= nil or url:sub(1, 1) == "/"
+    local target = url
+    if info and info.file and info.file ~= "" then
+        target = url .. info.file .. "#" .. label
+    end
+    if FORMAT:match("html") then
+        local text = fill(template, { title = html_escape(ext.title or prefix),
+            short = html_escape(ext.short or prefix),
+            ref = info and external_ref_text(info, false) or html_escape(label) })
+        if url == "" then return pandoc.RawInline("html", text), true end
+        local prefix_path = ""
+        if not absolute then
+            prefix_path = doc_meta and doc_meta["asset-prefix"] and pandoc.utils.stringify(doc_meta["asset-prefix"]) or ""
+        end
+        local attrs = {}
+        if info then
+            -- main.js fetches the preview from <data-base>theorems/<shard>/<label>.json
+            attrs = { {"data-ref", label}, {"data-shard", info.shard or ""},
+                      {"data-base", prefix_path .. url}, {"data-book", ext.title or prefix} }
+        end
+        return pandoc.Link({pandoc.RawInline("html", text)}, prefix_path .. target, "",
+                           pandoc.Attr("", {"xref", "xref-external"}, attrs)), true
+    elseif FORMAT:match("latex") then
+        local text = fill(template, { title = latex_escape(ext.title or prefix),
+            short = latex_escape(ext.short or prefix),
+            ref = info and external_ref_text(info, true) or latex_escape(label) })
+        -- Only an absolute web address means anything in a PDF
+        if url:match("^https?://") then
+            local href = target:gsub("[#%%\\]", "\\%0")
+            return pandoc.RawInline("latex", "\\href{" .. href .. "}{" .. text .. "}"), true
+        end
+        return pandoc.RawInline("latex", text), true
+    end
+    local plain = fill(template, { title = ext.title or prefix, short = ext.short or prefix,
+        ref = info and external_ref_text(info, false) or label })
+    return pandoc.Str(plain), true
+end
+
 -- Scan mode: collect labels and the references this file uses, print as JSON
 local function scan_and_dump_labels(doc)
     local collected = {}
@@ -853,7 +950,7 @@ local function scan_and_dump_labels(doc)
         -- example or exercise sits between the statement and the proof: crediting it to the
         -- example hid the fundamental theorem of algebra's citations from the dependency gate.
         -- Solutions, remarks, warnings and checks still belong to the block just before them.
-        local RESULT_ENVS = { theorem = true, lemma = true, corollary = true, proposition = true }
+        local RESULT_ENVS = { theorem = true, lemma = true, corollary = true, proposition = true, axiom = true }
         local PASS_OVER = { example = true, exercise = true }
         local PROOF_PARTS = { proof = true, proofofclaim = true, claim = true, idea = true }
         local current, current_kind, current_result = nil, nil, nil
@@ -1136,8 +1233,13 @@ local function process_citations(cite)
     for _, citation in ipairs(cite.citations) do
         local id = citation.id
         local label_info = labels[id] or global_labels[id]
-        
-        if label_info then
+        local external, is_external = nil, false
+        if not label_info then external, is_external = external_reference(citation) end
+
+        if is_external then
+            if not external then return nil end
+            table.insert(refs, external)
+        elseif label_info then
             local numbered = label_info.number and label_info.number ~= ""
             local name = label_info.type_name
             
@@ -1186,6 +1288,9 @@ local function process_citations(cite)
             -- Leave the text alone: @name may be a real citation or an email-like string
             if id:match("^%a+%-") then
                 io.stderr:write("Warning: unresolved reference @" .. id .. "\n")
+            elseif id:match("^%a[%w_]*:%a+%-") then
+                io.stderr:write("Warning: unresolved reference @" .. id
+                                .. " (no such book prefix in the config's external-books)\n")
             end
             return nil
         end
@@ -1237,6 +1342,7 @@ return {
             doc_meta = doc.meta
             init_counters(doc.meta)
             load_global_labels(doc.meta)
+            load_external_books(doc.meta)
             nested_div_keys = {}
             current_file_chapter = 0
             current_file_section = 0

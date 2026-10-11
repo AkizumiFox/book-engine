@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Optional
 
 from .book import Book, Page
+from .external import external_file
 from .html import FingerprintStore, page_fingerprint
 from .manifest import scan_labels, load_scan
 from .pandoc import (MARKDOWN_FORMAT, build_pandoc_command, environments_tex, page_metadata,
@@ -194,6 +195,8 @@ def build_book(book: Book) -> bool:
         "book-root": str(book.root),
         "engine-root": str(book.filters_dir.parent),
         "source-path": "book",
+        **({"external-books-file": str(external_file(book))}
+           if book.config.get("external-books") and external_file(book).exists() else {}),
     }), encoding="utf-8")
 
     filters = book.filters_dir

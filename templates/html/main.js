@@ -346,16 +346,24 @@
         }
     }
 
-    function loadEntry(shard, labelId) {
-        if (!theoremEntries.has(labelId)) {
-            const stored = cached(labelId);
+    // `base` is set for a reference into another book (a.xref-external, data-base): its
+    // site's root, from which the same theorems/<chapter>/<label>.json is fetched. That
+    // works on a shared origin (a library of books under one domain) and wherever the other
+    // site allows cross-origin reads; when the fetch fails the link stays a plain link.
+    function loadEntry(shard, labelId, base) {
+        const key = base ? `${base}|${labelId}` : labelId;
+        if (!theoremEntries.has(key)) {
+            const stored = base ? undefined : cached(labelId);
             if (stored !== undefined) {
-                theoremEntries.set(labelId, Promise.resolve(stored));
+                theoremEntries.set(key, Promise.resolve(stored));
             } else {
-                theoremEntries.set(labelId, fetchData(`theorems/${shard}/${labelId}.json`)
+                const request = base
+                    ? fetch(`${base}theorems/${shard}/${labelId}.json`)
+                    : fetchData(`theorems/${shard}/${labelId}.json`);
+                theoremEntries.set(key, request
                     .then(response => response.ok ? response.json() : null)
                     .then(info => {
-                        if (info) remember(labelId, info);
+                        if (info && !base) remember(labelId, info);
                         return info;
                     })
                     .catch(error => {
@@ -364,13 +372,13 @@
                     }));
             }
         }
-        return theoremEntries.get(labelId);
+        return theoremEntries.get(key);
     }
 
     /**
      * Generate tooltip HTML content for a theorem reference
      */
-    function generateTooltipContent(refId, info, goTo) {
+    function generateTooltipContent(refId, info, goTo, book) {
 
         if (!info) {
             return `<div class="tooltip-error">Reference not found: ${refId}</div>`;
@@ -383,6 +391,9 @@
         }
         if (info.title_html || info.title) {
             title += ` (${info.title_html || info.title})`;
+        }
+        if (book) {
+            title = `${book}, ${title}`;   // a result of another book (a.xref-external)
         }
 
         const footer = goTo
@@ -426,16 +437,28 @@
         xrefLinks.forEach(link => {
             const refId = link.dataset.ref;
             const shard = link.dataset.shard;
+            const base = link.dataset.base || '';
+            const book = link.dataset.book || '';
             const goTo = touch ? { href: link.getAttribute('href'), label: link.textContent.trim() } : null;
-            if (touch) link.addEventListener('click', event => event.preventDefault());
+            const preventTap = event => event.preventDefault();
+            if (touch) link.addEventListener('click', preventTap);
 
             tippy(link, {
                 ...TOOLTIP_CONFIG,
                 ...(touch ? { trigger: 'click', hideOnClick: true, placement: 'bottom', maxWidth: 'calc(100vw - 24px)' } : {}),
                 content: createLoadingContent(),
                 onShow(instance) {
-                    loadEntry(shard, refId).then(info => {
-                        instance.setContent(generateTooltipContent(refId, info, goTo));
+                    loadEntry(shard, refId, base).then(info => {
+                        if (!info && base) {
+                            // Another book's preview could not be fetched (offline, or a
+                            // cross-origin site that does not allow it): no tooltip, the
+                            // link still goes there.
+                            instance.hide();
+                            instance.disable();
+                            if (touch) link.removeEventListener('click', preventTap);
+                            return;
+                        }
+                        instance.setContent(generateTooltipContent(refId, info, goTo, book));
                         // Typeset math in the tooltip
                         const tooltipEl = instance.popper.querySelector('.tippy-content');
                         if (tooltipEl && window.MathJax && window.MathJax.typesetPromise) {

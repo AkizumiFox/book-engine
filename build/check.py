@@ -15,6 +15,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from .book import Book
+from .external import lookup as lookup_external, looks_external, resolve as resolve_external
 from .manifest import scan_labels, load_scan
 from .utils import print_step, print_success, print_warning, print_error, print_info
 
@@ -113,7 +114,10 @@ class _LinkCollector(HTMLParser):
         attrs = dict(attrs)
         if "id" in attrs:
             self.ids.add(attrs["id"])
-        if tag == "a" and "xref" in (attrs.get("class") or "").split() and attrs.get("href"):
+        classes = (attrs.get("class") or "").split()
+        # A reference into another book (xref-external) points at that book's site,
+        # which this check cannot see; `check` verifies its label against the registry.
+        if tag == "a" and "xref" in classes and "xref-external" not in classes and attrs.get("href"):
             self.xrefs.append(attrs["href"])
 
 
@@ -194,10 +198,27 @@ def check(book: Book, quiet: bool = False) -> bool:
         if len(sources) > 1:
             errors.append(f"duplicate label {label_id}: {', '.join(sources)}")
 
-    # Unresolved references (only ids shaped like labels, e.g. thm-foo)
+    # Unresolved references (only ids shaped like labels, e.g. thm-foo), and references
+    # into other books (@la:thm-foo, config "external-books"). A book whose registry
+    # cannot be read is a warning: its references print without numbers until it is built.
+    for prefix, ext in resolve_external(book).items():
+        if not ext["available"]:
+            warnings.append(f"external book '{prefix}' ({ext['title']}): {ext['problem']}; "
+                            f"its references are not checked")
     for entry in sorted(scan["files"].values(), key=lambda e: e["source"]):
         for ref in sorted(set(entry["refs"])):
-            if ref not in labels and re.match(r"^[A-Za-z]+-", ref):
+            if ref in labels:
+                continue
+            external = lookup_external(book, ref)
+            if external is not None:
+                prefix, label, info = external
+                if info is None:
+                    errors.append(f"unresolved reference @{ref} in {entry['source']}: "
+                                  f"{resolve_external(book)[prefix]['title']} has no label {label}")
+            elif looks_external(ref):
+                errors.append(f"unresolved reference @{ref} in {entry['source']}: "
+                              f"no external book '{ref.split(':', 1)[0]}' in the config's external-books")
+            elif re.match(r"^[A-Za-z]+-", ref):
                 errors.append(f"unresolved reference @{ref} in {entry['source']}")
 
     # Component problems found by filters/components.lua (bad plot expressions, widgets

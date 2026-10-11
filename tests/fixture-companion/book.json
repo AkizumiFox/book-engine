@@ -1,0 +1,13 @@
+{
+    "title": "Companion Book",
+    "author": "Test Author",
+    "chapters": ["src/ch01-tools"],
+    "environment_settings": {
+        "big_envs": [
+            {"prefix": "thm", "name": "Theorem", "numbered": true, "counter_group": "main", "color": "#2f62b5"},
+            {"prefix": "def", "name": "Definition", "numbered": true, "counter_group": "definition", "color": "#b0414f"},
+            {"prefix": "exm", "name": "Example", "numbered": false, "color": "#3b7a4c"}
+        ],
+        "small_envs": ["proof", "remark"]
+    }
+}

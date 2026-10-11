@@ -14,6 +14,7 @@ from typing import Optional
 from urllib.parse import quote, urlencode
 
 from .book import Book, Page, ENGINE_ROOT
+from .external import external_file
 from .utils import print_error, print_warning, run_with_crash_retry
 
 MARKDOWN_FORMAT = "markdown+tex_math_single_backslash"
@@ -46,6 +47,8 @@ def page_metadata(book: Book, page: Page, output_format: str, extra: Optional[di
         metadata["page-url"] = f"{book.site_url}{page.html_path}"
     if book.labels_file.exists():
         metadata["crossref-labels-file"] = str(book.labels_file)
+    if book.config.get("external-books") and external_file(book).exists():
+        metadata["external-books-file"] = str(external_file(book))
 
     if output_format == "html":
         prefix = page.asset_prefix

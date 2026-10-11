@@ -14,6 +14,7 @@ from html import escape as html_escape, unescape
 from concurrent.futures import ThreadPoolExecutor
 
 from .book import Book, Page
+from .external import resolve as resolve_external, split_ref, write_external_file
 from .utils import print_step, print_success, print_warning, print_error, run_with_crash_retry
 
 
@@ -92,6 +93,7 @@ def scan_labels(book: Book) -> dict:
     scan.json (per-page labels, references and text). Returns the scan data.
     """
     print_step("Scanning labels...")
+    resolve_external(book, refresh=True)
     meta_file = _scan_meta_file(book)
     pages = book.pages
     with ThreadPoolExecutor(max_workers=min(8, len(pages) or 1)) as executor:
@@ -107,9 +109,18 @@ def scan_labels(book: Book) -> dict:
         # owning result's own type for its statement). `uses` keeps its flat-list shape.
         uses_kinds = data.get("uses_kinds") or {}
         for label_id, info in data["labels"].items():
-            info = dict(info, file=page.html_path, shard=page.shard, uses=uses.get(label_id, []),
-                        uses_kinds=uses_kinds.get(label_id, {}),
+            # A citation of another book (@la:thm-x) is not a dependency inside this one:
+            # it goes to `external_uses`, so the graph, the reading paths and the
+            # forward-citation gate see only this book's labels.
+            cited = uses.get(label_id, [])
+            external = [ref for ref in cited if split_ref(book, ref)]
+            info = dict(info, file=page.html_path, shard=page.shard,
+                        uses=[ref for ref in cited if ref not in external],
+                        uses_kinds={ref: kinds for ref, kinds in uses_kinds.get(label_id, {}).items()
+                                    if ref not in external},
                         text=(data.get("block_text") or {}).get(label_id, ""))
+            if external:
+                info["external_uses"] = external
             global_labels.setdefault(label_id, info)
         scan_files[page.html_path] = {
             "source": str(page.source.relative_to(book.root)),
@@ -124,6 +135,7 @@ def scan_labels(book: Book) -> dict:
     add_title_mentions(global_labels, {p: e["refs"] for p, e in scan_files.items()},
                        set(book.config.get("mention-exempt-titles", ())))
     book.build_dir.mkdir(parents=True, exist_ok=True)
+    write_external_file(book, {ref for entry in scan_files.values() for ref in entry["refs"]})
     book.labels_file.write_text(json.dumps({"crossref_labels": global_labels}, indent=2), encoding="utf-8")
     scan = {"files": scan_files}
     book.scan_file.write_text(json.dumps(scan, indent=2), encoding="utf-8")

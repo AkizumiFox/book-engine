@@ -100,11 +100,33 @@
 \newunicodechar{−}{\ensuremath{-}}
 \newunicodechar{ᵀ}{\texorpdfstring{\ensuremath{^{\top}}}{T}}
 
+\newunicodechar{ }{\,}  % U+2009 thin space, as between initials ("E. H. Moore")
+
+% Images written by Pandoc carry both width and height=\textheight; keep their shape
+\usepackage{graphicx}
+\setkeys{Gin}{keepaspectratio}
+
 % Tables written by Pandoc (column widths use \real from calc)
 \usepackage{longtable,booktabs,array,calc}
 \providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 
 % hyperref is loaded by the pandoc template after latex/macros.tex, and it
 % reclaims \H (the Hungarian-umlaut accent). Restore the bold matrix H once
-% the preamble is over, so \H means the matrix in Chapter 7 onwards.
-\AtBeginDocument{\def\H{\mathbf{H}}}
+% the preamble is over, so \H means the bold matrix H -- in math. In the prose
+% \H is still the accent, or "Szeg\H{o}" loses its o (\bt@textsafe is
+% latex/latex-template.sty's; this hook is the last one to touch \H).
+\makeatletter
+\AtBeginDocument{\bt@textsafe\H\mH}
+\makeatother
+
+% Let TeX stretch a line rather than run it into the margin. Measured on two books
+% (linear algebra, regression) over three full builds each: 1em removes 54-61% of the
+% body's overfull boxes and changes no label number and no page count. 3em goes further
+% but re-breaks subsection headings onto conspicuously loose lines, which reads worse
+% than the overrun it fixes. The Contents' overfull boxes are a separate cause; see
+% latex/chapter-style.sty (\cftsubsecnumwidth).
+\emergencystretch=1em
+
+% Fitch-style derivations, if the book ships latex/fitch-book.sty (inert otherwise;
+% filters/tikz.lua and build/tikz.py handle the `nd` environment it defines).
+\IfFileExists{fitch-book.sty}{\usepackage{fitch-book}}{}

@@ -11,3 +11,5 @@ Immediate from @def-thing.
 ::: {.remark}
 Compare @lem-helper.
 :::
+
+Accented names survive the single-letter shorthands: Szegő, Jørgensen, Kvålseth, Šidák.

@@ -414,6 +414,11 @@ class TestFullBuild(FixtureBookCase):
         self.assertIn(r"\hyperref[thm-main]{Theorem~\ref*{thm-main}}", tex)
         self.assertIn(r"\begin{enumerate}[label=(A\arabic*)]", tex)
 
+    def test_pdf_accented_names_survive_the_shorthands(self):
+        """\\H, \\o, \\r, \\v are both text accents and bold-vector shorthands: in prose they stay accents."""
+        log = (self.book.build_dir / "tmp" / "latex-book" / "book.log").read_text(errors="replace")
+        self.assertNotIn("allowed only in math mode", log)
+
     def test_pdf_optional_marker(self):
         """The printed edition makes the same promise as the web one, inside the box."""
         tex = (self.book.build_dir / "tmp" / "latex-book" / "book.tex").read_text()

@@ -153,8 +153,12 @@
 % LEVEL 1: CHAPTER / SECTION BOX (e.g. 2.3 Rank-Nullity Theorem)
 % ======================================================================================
 \titleclass{\chapter}{straight}
+% Headings are set ragged right. A display heading is not prose: justifying it either
+% opens visible gaps between the words of a two-line title or, when no loose break is
+% feasible, runs the first line into the margin. Ragged right removes both -- it is what
+% took the last overfull and underfull boxes out of the headings.
 \titleformat{\chapter}[block]
-{\normalfont\fontsize{\chapterfontsize}{\chapterbaseline}\selectfont\bfseries\sffamily}
+{\normalfont\fontsize{\chapterfontsize}{\chapterbaseline}\selectfont\bfseries\sffamily\raggedright}
 {}
 {0pt}
 {%
@@ -169,7 +173,7 @@
 
 % Handle numberless
 \titleformat{name=\chapter,numberless}[block]
-{\normalfont\fontsize{\chapterfontsize}{\chapterbaseline}\selectfont\bfseries\sffamily\color{chaptercolor}}
+{\normalfont\fontsize{\chapterfontsize}{\chapterbaseline}\selectfont\bfseries\sffamily\raggedright\color{chaptercolor}}
 {}
 {0pt}
 {#1}
@@ -178,7 +182,7 @@
 % LEVEL 2: SECTION (## in markdown) - no left line, no bottom line; no number in preface
 % ======================================================================================
 \titleformat{\section}
-{\normalfont\fontsize{\sectionfontsize}{\sectionbaseline}\selectfont\bfseries\sffamily\color{sectioncolor}}
+{\normalfont\fontsize{\sectionfontsize}{\sectionbaseline}\selectfont\bfseries\sffamily\raggedright\color{sectioncolor}}
 {\ifnum\value{part}<0 \else \thesection\fi}{\ifnum\value{part}<0 0pt\else 1em\fi}{#1}
 \titlespacing*{\section}{0pt}{3.2ex plus 0.6ex minus 0.2ex}{1.8ex plus 0.3ex}
 
@@ -186,7 +190,7 @@
 % LEVEL 3: SUBSECTION (### in markdown) - black box around number only; no number in preface
 % ======================================================================================
 \titleformat{\subsection}
-{\normalfont\fontsize{\subsectionfontsize}{\subsectionbaseline}\selectfont\bfseries}
+{\normalfont\fontsize{\subsectionfontsize}{\subsectionbaseline}\selectfont\bfseries\raggedright}
 {\ifnum\value{part}<0 \else \fboxsep=4pt\fboxrule=0.5pt\colorbox{black}{\color{white}\thesubsection}\fi}{\ifnum\value{part}<0 0pt\else 0.6em\fi}{#1}
 \titlespacing*{\subsection}{0pt}{2.2ex plus 0.5ex minus 0.2ex}{1.2ex plus 0.2ex}
 \titlespacing*{\subsection}{0pt}{2.2ex plus 0.5ex minus 0.2ex}{1.2ex plus 0.2ex}
@@ -204,17 +208,17 @@
 % ======================================================================================
 \if@bookmode
 \titleformat{\chapter}[block]
-{\normalfont\fontsize{\sectionfontsize}{\sectionbaseline}\selectfont\bfseries\sffamily\color{sectioncolor}}
+{\normalfont\fontsize{\sectionfontsize}{\sectionbaseline}\selectfont\bfseries\sffamily\raggedright\color{sectioncolor}}
 {\ifnum\value{part}<0 \mbox{}\else \thechapter\fi}{\ifnum\value{part}<0 0pt\else 1em\fi}{\ifnum\value{part}<0 \mbox{}\else #1\fi}
 \titlespacing*{\chapter}{0pt}{\ifnum\value{part}<0 0pt\else 3.2ex plus 0.6ex minus 0.2ex\fi}{1.8ex plus 0.3ex}
 
 \titleformat{\section}
-{\normalfont\fontsize{\subsectionfontsize}{\subsectionbaseline}\selectfont\bfseries}
+{\normalfont\fontsize{\subsectionfontsize}{\subsectionbaseline}\selectfont\bfseries\raggedright}
 {\ifnum\value{part}<0 \else \fboxsep=4pt\fboxrule=0.5pt\colorbox{black}{\color{white}\thesection}\fi}{\ifnum\value{part}<0 0pt\else 0.6em\fi}{#1}
 \titlespacing*{\section}{0pt}{2.2ex plus 0.5ex minus 0.2ex}{1.2ex plus 0.2ex}
 
 \titleformat{\subsection}
-{\normalfont\normalsize\bfseries}
+{\normalfont\normalsize\bfseries\raggedright}
 {\thesubsection}{1em}{#1}
 \titlespacing*{\subsection}{0pt}{1.5ex plus 0.3ex minus 0.1ex}{0.8ex plus 0.1ex}
 \fi
@@ -231,6 +235,11 @@
 \renewcommand{\cftpartaftersnum}{}
 \setlength{\cftchapnumwidth}{3.5em}
 \setlength{\cftsecnumwidth}{4.5em}
+% The deepest entries are four-component numbers (1.10.1.1), which do not fit tocloft's
+% default box: 591 identical "Overfull \hbox (1.6587pt too wide) ... detected at"
+% warnings, all of them this one cause, and 73% of the whole book's overfull count.
+% Nothing collides on the page -- the number box is simply narrower than its contents.
+\setlength{\cftsubsecnumwidth}{5.5em}
 
 \setlength{\cftchapindent}{1.5em}
 \setlength{\cftsecindent}{3.0em}
@@ -258,16 +267,21 @@
 % SPEED ALIASES
 % ======================================================================================
 % Math-mode safe vector shortcuts
-% Note: \v, \b, \O, etc. conflict with LaTeX accent/special commands
-% Using DeclareRobustCommand to properly override in both text and math mode
+% \v, \b, \a and \O are also LaTeX text commands (the caron, the bar-under accent, the
+% tabbing accent, and the O-slash of "Langsrud, Oyvind"). Being robust is not enough:
+% redefined outright they expand to \mathbf in the prose too, which is an error and loses
+% the letter. \bt@textsafe (latex/latex-template.sty) keeps the text meaning outside math.
+% This hook runs after that file's, so these four have to be restated the safe way.
+\makeatletter  % this file said \makeatother above; \bt@textsafe has an @ in its name
 \AtBeginDocument{%
-  \DeclareRobustCommand*{\v}{\vv}%
+  \bt@textsafe\v\vv
   \DeclareRobustCommand*{\w}{\vw}%
   \DeclareRobustCommand*{\x}{\vx}%
   \DeclareRobustCommand*{\y}{\vy}%
   \DeclareRobustCommand*{\z}{\vz}%
-  \DeclareRobustCommand*{\b}{\vb}%
+  \bt@textsafe\b\vb
   \DeclareRobustCommand*{\s}{\vs}%
-  \DeclareRobustCommand*{\a}{\va}%
-  \DeclareRobustCommand*{\O}{\mathbf{O}}%
+  \bt@textsafe\a\va
+  \bt@textsafe\O\mO
 }
+\makeatother

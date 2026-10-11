@@ -191,11 +191,22 @@
         {\par\parindent=0pt}%
         {\csuse{bookenv@end@#1}\par}%
     %
-    \csundef{#1}\csundef{end#1}%
-    \newenvironment{#1}[1][]%
-        {\bookenvheadspace\csname bookbox@#1\endcsname\parindent=0pt
-         \noindent\textit{#2}\ifstrempty{##1}{.}{. \textit{(##1)}}\ignorespaces\space}%
-        {\csuse{bookenv@end@#1}\csname endbookbox@#1\endcsname}%
+    % The plain form claims the environment's own name, and that name may
+    % already belong to something that is not an environment: `check' is
+    % LaTeX's math accent \check, and \begin{check} would destroy it -- two
+    % sections write \check{\X} and \check{\bbeta}. An environment always
+    % defines \end<name> as well, so that is the test: amsthm's proof has
+    % \endproof and is replaced as before, a free name is taken as before, and
+    % a command that is not an environment is left alone. Nothing is lost when
+    % it is: filters/theorems.lua writes the head into the content and asks for
+    % <env>inline, so the plain form is a fallback this book never emits.
+    \ifboolexpr{ not test {\ifcsdef{#1}} or test {\ifcsdef{end#1}} }{%
+        \csundef{#1}\csundef{end#1}%
+        \newenvironment{#1}[1][]%
+            {\bookenvheadspace\csname bookbox@#1\endcsname\parindent=0pt
+             \noindent\textit{#2}\ifstrempty{##1}{.}{. \textit{(##1)}}\ignorespaces\space}%
+            {\csuse{bookenv@end@#1}\csname endbookbox@#1\endcsname}%
+    }{}%
 }
 
 \endinput

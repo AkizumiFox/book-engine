@@ -212,8 +212,10 @@
         if (!navigationData) return;
 
         const sidebarTitle = document.querySelector('.sidebar-title');
-        if (sidebarTitle && navigationData.title) {
-            sidebarTitle.textContent = navigationData.title;
+        // plain text: the title as TeX would show \( \) markup (the page renders the real one)
+        const title = navigationData.title_plain || navigationData.title;
+        if (sidebarTitle && title) {
+            sidebarTitle.textContent = title;
         }
     }
 

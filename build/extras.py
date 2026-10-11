@@ -25,6 +25,7 @@ from html import escape
 from pathlib import Path
 
 from .book import Book, Page, ENGINE_ROOT
+from .macros import plain_text
 from .manifest import load_scan, STATEMENT_TYPES
 from .pandoc import build_pandoc_command, page_metadata, run_pandoc
 from .utils import print_success, print_error, print_warning
@@ -66,18 +67,9 @@ RESULT_GROUPS = [
 ]
 
 
-BLACKBOARD = {"R": "ℝ", "Q": "ℚ", "C": "ℂ", "Z": "ℤ", "N": "ℕ", "F": "𝔽"}
-SYMBOLS = {"sqrt": "√", "cdot": "·", "times": "×", "to": "→", "leq": "≤", "geq": "≥", "neq": "≠",
-           "in": "∈", "subseteq": "⊆", "oplus": "⊕", "cap": "∩", "cup": "∪", "infty": "∞"}
-
-
-def plain_title(title: str) -> str:
+def plain_title(title: str, macros: dict | None = None) -> str:
     """A title for places that cannot typeset math (graph labels): TeX to readable text."""
-    title = re.sub(r"\\n([A-Z])\b", lambda m: BLACKBOARD.get(m.group(1), m.group(1)), title)
-    title = re.sub(r"\\[()\[\]]", "", title)
-    title = re.sub(r"\\([A-Za-z]+)", lambda m: SYMBOLS.get(m.group(1), m.group(1)), title)
-    title = title.replace("{", "").replace("}", "")
-    return " ".join(title.split())
+    return plain_text(title, macros)
 
 
 def _group_of(env_type: str) -> str:

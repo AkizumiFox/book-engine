@@ -291,6 +291,7 @@ def navigation_data(book: Book) -> dict:
     preface = next((p for p in pages if p.is_preface), None)
     navigation = {
         "title": book.title,
+        "title_plain": book.plain_title,
         "author": book.author,
         "home": {"title": preface.title, "path": preface.html_path} if preface else None,
         "extras": [
@@ -461,7 +462,7 @@ def generate_site_files(book: Book):
     # GitHub Pages serves 404.html for unknown paths at any depth, so links are absolute:
     # from the book's own path on its origin (site-url), "/" by default
     root = book.site_path
-    title = html_escape(book.title)
+    title = html_escape(book.plain_title)
     _write_if_changed(book.html_dir / "404.html", f"""<!DOCTYPE html>
 <html lang="en">
 <head>

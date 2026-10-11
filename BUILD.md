@@ -326,19 +326,26 @@ every book a manifest lists and assembles one site from them:
   "out": "site",
   "build-dir": "_build/library",
   "landing": {
-    "title": "Math Atlas", "badge": "Work in progress",
-    "intro": "A textbook series from first proofs to the qualifying exam.",
+    "title": "Math Atlas",
+    "tagline": "A textbook series from first proofs to the qualifying exam.",
+    "usage": "Each volume is a book; references between volumes link across.",
+    "status": "Work in progress.",
+    "diagram": {"title": "Reading order", "caption": "Read F1, then AN1.",
+                "nodes": [{"id": "F1", "book": "fd1", "name": "Logic", "at": [0, 0]},
+                          {"id": "AN1", "book": "an1", "name": "Analysis", "at": [1, 0]}],
+                "edges": [["F1", "AN1"]]},
     "groups": [
-      {"series": "Foundations", "intro": "Read these first."},
+      {"series": "Foundations", "blurb": "Read these first."},
       {"title": "Analysis", "books": ["an1"]},
       {"title": "The atlas", "links": [{"title": "Dependency graph", "href": "atlas/atlas.html",
                                         "blurb": "Every planned volume and chapter."}]}
     ],
-    "footer": "Books: CC BY-NC-SA 4.0."
+    "licence": "Books: CC BY-NC-SA 4.0.",
+    "sources": [{"title": "USER/foundations", "href": "https://github.com/USER/foundations"}]
   },
   "files": [{"from": "generated/atlas.html", "to": "atlas/atlas.html"}],
   "books": [
-    {"prefix": "fd1", "title": "Logic and Proof", "short": "FD1", "blurb": "Volume 1.",
+    {"prefix": "fd1", "title": "Logic and Proof", "short": "F1", "blurb": "Volume 1.", "planned": 5,
      "path": "../foundations/fd1", "subdir": "fd1", "series": "Foundations",
      "overlay": {"issues-url": "https://github.com/USER/foundations/issues/new"}},
     {"prefix": "an1", "title": "Analysis on the Real Line", "path": "../analysis/an1",
@@ -355,8 +362,11 @@ every book a manifest lists and assembles one site from them:
 - Books: `prefix` (required) is the prefix other books cite it by (`@fd1:thm-x`);
   `path` (required) the book's directory; `subdir` defaults to the prefix; `title`
   defaults to the book's own config title; `short` (default: the prefix in capitals) is
-  the bracketed-citation form; `series` groups it on the landing page; `blurb` (HTML) is
-  shown on its card; `overlay` (an object or a JSON file) is merged into that book's
+  the bracketed-citation form and the code on its landing-page card; `series` groups it
+  on the landing page; `blurb` (HTML, TeX math allowed) is shown on its card; `planned`
+  (a number of chapters) makes the card's progress line "3 of 7 chapters written" (else
+  the chapter count); `pdf` (an address) is the card's PDF link (else the library's own
+  `<subdir>/book/book.pdf` when built `--with-pdf`); `overlay` (an object or a JSON file) is merged into that book's
   generated overlay. `canonical` (an http(s) address, e.g.
   `"https://linear-algebra.akizumifox.com/"`) is for a book that also has its own
   published site: its pages' canonical and og:url links point to the same page there
@@ -364,10 +374,19 @@ every book a manifest lists and assembles one site from them:
   the library and the library's sitemap index leaves it out. Everything else (relative
   links, assets, links and hover previews to the other books, the root `404.html` and
   landing page) is as for any other book.
-- `landing`: `title`, `badge`, `intro` (HTML), `footer` (HTML) and `groups`, each with a
-  `title` and/or `series` (the books whose `series` matches), or an explicit `books` list
-  of prefixes, an optional `intro` and extra `links` cards. Without `groups`, one section
-  per series in manifest order; books no group lists come last, by series.
+- `landing` (see `build/landing.py`): `title`; `tagline`, `usage` and `status` (HTML: a
+  one-sentence purpose, how to use the site, a quiet work-in-progress note); `diagram`, a
+  reading-order figure drawn as inline SVG (`nodes` with an `id`, an optional `book`
+  prefix, a short `name`, `planned`, and grid positions `at` and, for phones,
+  `at-narrow`; `edges` as pairs or `{"from", "to", "kind": "optional"}`; a `caption`
+  that is also its text alternative); `groups`, each with a `title` and/or `series` (the
+  books whose `series` matches), or an explicit `books` list of prefixes, an optional
+  `blurb` and extra `links` cards (`title`, `href`, `blurb`, `label`, `action`); and the
+  footer's `licence` (HTML), `sources` (`title`, `href`) and `footer` (HTML). Without
+  `groups`, one section per series in manifest order; books no group lists come last, by
+  series. `intro` and `badge` are read as `tagline` and `status`. TeX math in titles and
+  blurbs is rendered as in the books (MathJax at build time, a book's `mathjax.css`), or
+  as plain text (ℕ) when the books' math was not prerendered.
 - `files`: extra files or directories copied into the site.
 
 How it builds, in two passes so books can cite each other in both directions:
@@ -388,7 +407,8 @@ book's own `_build/html`. `out` is then emptied (a `.git` and a `CNAME` are kept
 can be a clone of the site's repository) and filled: each book's HTML in `<subdir>/`
 (as `deploy` copies it: no stale chapters, no `_` scratch files, with redirect stubs),
 and at the root `index.html` (the landing page: light/dark following the system and the
-books' theme toggle, no external fonts or scripts), `404.html` (offers the book whose
+books' theme toggle and saved choice, the books' STIX Two Text served from a book's
+`fonts/`, no external fonts or scripts), `404.html` (offers the book whose
 sub-directory the missing address is in; GitHub Pages serves only the root one),
 `robots.txt`, `sitemap.xml` (a sitemap index of each book's sitemap, except a book's
 with `canonical`, and

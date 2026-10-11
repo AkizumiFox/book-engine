@@ -22,6 +22,8 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
 
+from .macros import plain_text
+
 ENGINE_ROOT = Path(__file__).parent.parent.resolve()
 CONFIG_CANDIDATES = ("book.json", "config/config.json")
 
@@ -155,6 +157,20 @@ class Book:
     @property
     def title(self) -> str:
         return self.config.get("title", "Untitled")
+
+    @cached_property
+    def _plain_macros(self) -> dict:
+        from .macros import mathjax_macros
+        return mathjax_macros(self.macros_file)
+
+    def plain(self, text: str) -> str:
+        """TeX in a title as plain text (for <title>, og: tags, labels), read through the
+        book's own macro file: "From \\(\\nN\\)" -> "From ℕ"."""
+        return plain_text(text, self._plain_macros)
+
+    @property
+    def plain_title(self) -> str:
+        return self.plain(self.title)
 
     @property
     def author(self) -> str:

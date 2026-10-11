@@ -182,14 +182,47 @@ class TestLibraryBuild(unittest.TestCase):
     def test_landing_page(self):
         landing = self.read("index.html")
         self.assertIn("<h1>Test Library</h1>", landing)
-        self.assertIn('<a class="card" href="alpha/" data-book="a"><h3>Alpha Book', landing)
-        self.assertIn('<a class="card" href="beta/" data-book="b"><h3>Beta Book', landing)  # title from its config
-        self.assertIn("<h2>First Series</h2>", landing)
-        self.assertIn("<h2>Second Series</h2>", landing)
+        cards = re.findall(r'<article class="card" id="book-(\w+)"', landing)
+        self.assertEqual(cards, ["a", "b"])
+        self.assertIn('<a href="alpha/">Alpha Book</a></h3>', landing)
+        self.assertIn('<h2 id="series-first-series">First Series</h2>', landing)
+        self.assertIn('<h2 id="series-second-series">Second Series</h2>', landing)
         self.assertIn('href="notes/notes.html"', landing)
         self.assertIn("prefers-color-scheme: dark", landing)
-        self.assertNotRegex(landing, r"https?://(?!shelf\.example\.org)")  # no external fonts or scripts
+        self.assertIn("1 of 3 chapters written", landing)               # chapters against "planned"
+        self.assertIn("Mirrored here from its own site", landing)       # beta has a canonical home
+        # the books' fonts, served by a book; nothing loaded from elsewhere
+        self.assertIn("url('alpha/fonts/stix-two-text-latin-400-normal.woff2')", landing)
+        self.assertEqual(re.findall(r'<(?:script|link)\b[^>]*(?:src|href)="https?://[^"]*"', landing),
+                         [f'<link rel="canonical" href="{SITE}"'])
         self.assertTrue((self.out / "notes" / "notes.html").is_file())
+        self.assertTrue((self.out / "favicon.svg").is_file())
+
+    def test_landing_titles_render_math(self):
+        landing = self.read("index.html")
+        self.assertNotIn("\\(", landing)
+        self.assertNotIn("\\mathbb", re.sub(r'data-tex="[^"]*"', "", landing))
+        beta_title = re.search(r'<h3 id="title-b">(.*?)</h3>', landing, re.S).group(1)
+        if "<mjx-container" in beta_title:      # rendered by MathJax, styled by a book's sheet
+            self.assertIn('href="alpha/mathjax.css"', landing)
+        else:                                    # no Node: plain text
+            self.assertIn("Beta Book over ℝ", beta_title)
+        self.assertIn("<title>Test Library</title>", landing)
+
+    def test_no_tex_in_any_page_title(self):
+        for page in self.out.rglob("*.html"):
+            text = page.read_text(encoding="utf-8")
+            title = re.search(r"<title>(.*?)</title>", text, re.S)
+            if title:
+                self.assertNotIn("\\(", title.group(1), page)
+                self.assertNotIn("<", title.group(1), page)
+            for content in re.findall(r'<meta property="og:\w+" content="([^"]*)"', text):
+                self.assertNotIn("\\(", content, page)
+        page = self.read("beta/index.html")
+        self.assertIn("– Beta Book over ℝ</title>", " ".join(page.split()))
+        self.assertIn('<meta property="og:site_name" content="Beta Book over ℝ">', page)
+        self.assertIn("Beta Book over ℝ", self.read("beta/404.html"))
+        self.assertIn('"title_plain":"Beta Book over ℝ"', self.read("beta/navigation.json"))
 
     def test_site_files(self):
         self.assertEqual(self.read("robots.txt"), f"User-agent: *\nAllow: /\nSitemap: {SITE}sitemap.xml\n")
@@ -229,6 +262,28 @@ class TestLibraryBuild(unittest.TestCase):
             entry.setdefault("title", entry["prefix"])
         page = landing_page(manifest)
         self.assertLess(page.index("First Series"), page.index("Second Series"))
+
+    def test_landing_plain_text_without_math(self):
+        manifest = load_manifest(self.root / "library.json")
+        for entry in manifest["books"]:
+            entry["title"] = r"From \(\nN\) to \(\nR\)"
+        manifest["macros"] = {"nN": r"\mathbb{N}", "nR": r"\mathbb{R}"}
+        page = landing_page(manifest)
+        self.assertNotIn("\\(", page)
+        self.assertIn("From ℕ to ℝ</a></h3>", page)
+
+
+class TestPlainText(unittest.TestCase):
+
+    def test_book_macros(self):
+        from build.macros import plain_text
+        macros = {"nN": r"\mathbb{N}", "nR": r"\mathbb{R}", "Field": r"\mathbb{F}"}
+        self.assertEqual(plain_text(r"Number Systems: From \(\nN\) to \(\nR\)", macros),
+                         "Number Systems: From ℕ to ℝ")
+        self.assertEqual(plain_text(r"Vectors over \( \Field \)", macros), "Vectors over 𝔽")
+        self.assertEqual(plain_text(r"Subsets of \(\nR\), again", {}), "Subsets of ℝ, again")  # \nX convention
+        self.assertEqual(plain_text(r"The map \(x \mapsto \sqrt{2}\)"), "The map x ↦ √2")
+        self.assertEqual(plain_text("No math here"), "No math here")
 
 
 if __name__ == "__main__":

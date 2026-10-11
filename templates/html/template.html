@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>$if(pagetitle)$$pagetitle$$else$$title$$endif$ – $if(title)$$title$$endif$</title>
+    <title>$if(pagetitle)$$pagetitle$$else$$title-plain$$endif$ – $title-plain$</title>
 
     <meta name="asset-prefix" content="$if(asset-prefix)$$asset-prefix$$else$./$endif$">
     <meta name="page-path" content="$page-path$">
@@ -49,8 +49,8 @@
     <meta property="og:url" content="$canonical-url$">
     $endif$
     <meta property="og:type" content="article">
-    <meta property="og:site_name" content="$title$">
-    <meta property="og:title" content="$if(pagetitle)$$pagetitle$$else$$title$$endif$">
+    <meta property="og:site_name" content="$title-plain$">
+    <meta property="og:title" content="$if(pagetitle)$$pagetitle$$else$$title-plain$$endif$">
     $if(description)$
     <meta property="og:description" content="$description$">
     $endif$

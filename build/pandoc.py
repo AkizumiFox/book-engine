@@ -34,8 +34,10 @@ def page_metadata(book: Book, page: Page, output_format: str, extra: Optional[di
         "section-number": page.number,
         "asset-prefix": page.asset_prefix if output_format == "html" else "./",
         "title": book.title,
+        # <title> and og: tags cannot typeset math: the titles as plain text (\\nR -> ℝ)
+        "title-plain": book.plain_title,
         "title-text": page.title,
-        "pagetitle": f"{page.number} {page.title}" if page.number else page.title,
+        "pagetitle": book.plain(f"{page.number} {page.title}" if page.number else page.title),
         "tikz-cache-dir": str(book.tikz_cache_dir),
         "page-shard": page.shard,
         "page-path": page.html_path,
@@ -100,7 +102,7 @@ def page_metadata(book: Book, page: Page, output_format: str, extra: Optional[di
                 metadata[f"{direction}-page-url"] = f"{prefix}{neighbour.html_path}"
                 metadata[f"{direction}-page-title"] = neighbour.title
                 # For the aria-label attribute: rendered math markup would break the HTML there
-                metadata[f"{direction}-page-label"] = plain_label(neighbour.title)
+                metadata[f"{direction}-page-label"] = book.plain(neighbour.title)
                 metadata[f"{direction}-page-number"] = neighbour.number
 
     metadata.update(extra or {})

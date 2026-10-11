@@ -12,15 +12,10 @@ The manifest (paths in it are relative to the manifest's directory):
     {
       "site-url": "https://example.github.io/library/",
       "out": "site",
-      "landing": {"title": "Library", "intro": "...", "badge": "Work in progress",
-                  "footer": "...",
-                  "groups": [{"title": "Foundations", "intro": "...", "books": ["fd1", "fd2"]},
-                             {"title": "Elsewhere", "links": [{"title": "The atlas",
-                                                              "href": "atlas/atlas.html",
-                                                              "blurb": "..."}]}]},
+      "landing": {...},                     # the landing page: see build/landing.py
       "files": [{"from": "generated/atlas.html", "to": "atlas/atlas.html"}],
       "books": [{"prefix": "fd1", "title": "Logic and Proof", "short": "FD1",
-                 "blurb": "...", "path": "../foundations/fd1", "subdir": "fd1",
+                 "blurb": "...", "planned": 7, "path": "../foundations/fd1", "subdir": "fd1",
                  "series": "Foundations", "overlay": {...},
                  "canonical": "https://fd1.example.org/"}]
     }
@@ -49,7 +44,8 @@ import shutil
 from html import escape
 from pathlib import Path
 
-from .book import Book, load_overlay, merge_patch
+from .book import Book, ENGINE_ROOT, load_overlay, merge_patch
+from .landing import groups as _groups, landing_page, not_found_page, render_landing_math  # noqa: F401
 from .deploy import is_stale_chapter_dir, write_redirects
 from .utils import print_header, print_step, print_success, print_error, print_info, print_warning
 
@@ -243,6 +239,10 @@ def build_library(manifest_path, out=None, with_pdf: bool = False, extra_overlay
             print_error(f"book {entry['prefix']} did not build cleanly")
             ok = False
         built.append((entry, book))
+        # what the landing page says about the book
+        entry["title-plain"] = book.plain_title
+        entry["chapter-count"] = sum(1 for c in book.chapters if c.directory.is_dir())
+        entry["section-count"] = sum(1 for p in book.pages if p.section > 0)
 
     assemble(manifest, built, with_pdf)
     if ok:
@@ -300,8 +300,7 @@ def assemble(manifest: dict, built: list, with_pdf: bool):
         else:
             print_warning(f"files: {item['from']} not found")
     site_url = manifest["site-url"]
-    (out / "index.html").write_text(landing_page(manifest), encoding="utf-8")
-    (out / "404.html").write_text(not_found_page(manifest), encoding="utf-8")
+    write_landing(manifest, built, with_pdf)
     (out / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {site_url}sitemap.xml\n", encoding="utf-8")
     (out / "sitemap.xml").write_text(sitemap_index(manifest, out), encoding="utf-8")
     (out / "sitemap-landing.xml").write_text(
@@ -324,185 +323,36 @@ def sitemap_index(manifest: dict, out: Path) -> str:
             f"{entries}\n</sitemapindex>\n")
 
 
-# =============================================================================
-# Landing and 404 pages
-# =============================================================================
-
-PAGE_STYLE = """
-:root { color-scheme: light; --bg: #fbfaf7; --fg: #1f1d1a; --muted: #6b665e; --card: #ffffff;
-        --line: #e4e0d8; --accent: #2f5d8a; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { color-scheme: dark; --bg: #16171a; --fg: #e8e6e1; --muted: #9a958c;
-        --card: #1f2125; --line: #33363c; --accent: #8ab4e0; }
-}
-:root[data-theme="dark"] { color-scheme: dark; --bg: #16171a; --fg: #e8e6e1; --muted: #9a958c;
-        --card: #1f2125; --line: #33363c; --accent: #8ab4e0; }
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.55 Georgia, "STIX Two Text", "Times New Roman", serif; }
-main { max-width: 760px; margin: 0 auto; padding: 48px 16px 64px; }
-h1 { font-weight: 600; margin: 0 0 6px; }
-a { color: var(--accent); }
-.lede { color: var(--muted); margin: 0 0 32px; }
-.badge { display: inline-block; font: 600 12px/1 system-ui, sans-serif; letter-spacing: .04em; text-transform: uppercase;
-         color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 4px 6px; margin-bottom: 18px; }
-.series { margin: 0 0 28px; }
-.series h2 { font-size: 15px; font: 600 13px/1.2 system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase;
-             color: var(--muted); margin: 0 0 10px; }
-.series > p { color: var(--muted); margin: -4px 0 12px; font-size: 15px; }
-a.card { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px 20px;
-         margin: 0 0 12px; color: inherit; text-decoration: none; }
-a.card:hover, a.card:focus-visible { border-color: var(--accent); }
-a.card h3 { margin: 0 0 4px; font-size: 20px; color: var(--accent); font-weight: 600; }
-a.card .short { font: 600 12px/1 system-ui, sans-serif; color: var(--muted); margin-left: 6px; vertical-align: 2px; }
-a.card p { margin: 0; color: var(--muted); font-size: 15px; }
-footer { margin-top: 36px; color: var(--muted); font-size: 14px; }
-.theme-toggle { position: absolute; top: 14px; right: 16px; background: none; border: 1px solid var(--line); color: var(--muted);
-                border-radius: 6px; padding: 4px 8px; font: 13px system-ui, sans-serif; cursor: pointer; }
-.theme-toggle:hover { color: var(--fg); border-color: var(--accent); }
-"""
-
-# The books' own setting (main.js stores it as "book-theme"): one choice for the whole site
-THEME_SCRIPT = """(function () {
-    var theme = null;
-    try { theme = localStorage.getItem('book-theme'); } catch (e) {}
-    if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
-})();"""
-
-TOGGLE_SCRIPT = """(function () {
-    var button = document.querySelector('.theme-toggle');
-    if (!button) return;
-    button.hidden = false;
-    button.addEventListener('click', function () {
-        var root = document.documentElement;
-        var current = root.dataset.theme
-            || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-        var next = current === 'dark' ? 'light' : 'dark';
-        root.dataset.theme = next;
-        try { localStorage.setItem('book-theme', next); } catch (e) {}
-    });
-})();"""
-
-
-def _page(title: str, body: str, head_extra: str = "", scripts: str = "") -> str:
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{escape(title)}</title>
-{head_extra}<script>{THEME_SCRIPT}</script>
-<style>{PAGE_STYLE}</style>
-</head>
-<body>
-{body}
-{scripts}</body>
-</html>
-"""
-
-
-def _groups(manifest: dict) -> list[dict]:
-    """The landing page's sections: the manifest's `landing.groups`, else one per series
-    in the order the books list them. Books no group names go last, by series."""
-    by_prefix = {entry["prefix"]: entry for entry in manifest["books"]}
-    groups = manifest["landing"].get("groups")
-    if not groups:
-        groups, index = [], {}
-        for entry in manifest["books"]:
-            series = entry.get("series") or ""
-            if series not in index:
-                index[series] = {"title": series, "books": []}
-                groups.append(index[series])
-            index[series]["books"].append(entry["prefix"])
-    result, placed = [], set()
-    for group in groups:
-        names = group.get("books")
-        if names is None and group.get("series"):
-            names = [e["prefix"] for e in manifest["books"] if e.get("series") == group["series"]]
-        entries = [by_prefix[name] for name in names or [] if name in by_prefix]
-        placed.update(e["prefix"] for e in entries)
-        result.append(dict(group, title=group.get("title") or group.get("series") or "", entries=entries))
-    for entry in manifest["books"]:      # the rest, by series
-        if entry["prefix"] in placed:
-            continue
-        series = entry.get("series") or ""
-        group = next((g for g in result if g.get("rest") and g["title"] == series), None)
-        if group is None:
-            group = {"title": series, "entries": [], "rest": True}
-            result.append(group)
-        group["entries"].append(entry)
-    return result
-
-
-def landing_page(manifest: dict) -> str:
-    """index.html at the library root. Titles are text; `intro`, `blurb` and `footer` may
-    hold HTML (the manifest is the site owner's own file)."""
-    landing = manifest["landing"]
-    title = landing.get("title") or "Library"
-    parts = ['<main>', '<button class="theme-toggle" type="button" hidden aria-label="Switch light or dark theme">Theme</button>']
-    if landing.get("badge"):
-        parts.append(f'<span class="badge">{escape(landing["badge"])}</span>')
-    parts.append(f"<h1>{escape(title)}</h1>")
-    if landing.get("intro"):
-        parts.append(f'<p class="lede">{landing["intro"]}</p>')
-    for group in _groups(manifest):
-        if not group["entries"] and not group.get("links"):
-            continue
-        parts.append('<section class="series">')
-        if group["title"]:
-            parts.append(f"<h2>{escape(group['title'])}</h2>")
-        if group.get("intro"):
-            parts.append(f"<p>{group['intro']}</p>")
-        for entry in group["entries"]:
-            short = entry.get("short") or entry["prefix"].upper()
-            blurb = f"<p>{entry['blurb']}</p>" if entry.get("blurb") else ""
-            parts.append(f'<a class="card" href="{escape(entry["subdir"])}/" data-book="{escape(entry["prefix"])}">'
-                         f'<h3>{escape(entry["title"])}<span class="short">{escape(short)}</span></h3>{blurb}</a>')
-        for link in group.get("links") or []:
-            blurb = f"<p>{link['blurb']}</p>" if link.get("blurb") else ""
-            parts.append(f'<a class="card" href="{escape(link.get("href", ""))}">'
-                         f'<h3>{escape(link.get("title", ""))}</h3>{blurb}</a>')
-        parts.append("</section>")
-    if landing.get("footer"):
-        parts.append(f"<footer>{landing['footer']}</footer>")
-    parts.append("</main>")
-    description = re.sub(r"<[^>]+>", "", landing.get("intro") or "")
-    head = (f'<link rel="canonical" href="{escape(manifest["site-url"])}">\n'
-            + (f'<meta name="description" content="{escape(description)}">\n' if description else ""))
-    return _page(title, "\n".join(parts), head, f"<script>{TOGGLE_SCRIPT}</script>\n")
-
-
-def not_found_page(manifest: dict) -> str:
-    """The root 404.html. GitHub Pages serves only the root one for a project site, so it
-    works out from the address which book the reader was in and offers that book."""
-    site_path = re.match(r"^[a-z]+://[^/]+(/.*)?$", manifest["site-url"]).group(1) or "/"
-    title = manifest["landing"].get("title") or "Library"
-    books = [{"subdir": e["subdir"], "title": e["title"]} for e in manifest["books"]]
-    body = f"""<main>
-<p><a href="{escape(site_path)}">{escape(title)}</a></p>
-<h1>Page not found</h1>
-<p>This page does not exist, or it moved when a book was reorganized.</p>
-<p id="book-hint" hidden></p>
-<p><a href="{escape(site_path)}">Go to the library's front page</a>.</p>
-</main>"""
-    script = """<script>
-(function () {
-    var root = %s, books = %s;
-    var path = location.pathname;
-    if (path.indexOf(root) !== 0) return;
-    var rest = path.slice(root.length);
-    for (var i = 0; i < books.length; i++) {
-        var subdir = books[i].subdir + '/';
-        if (rest === books[i].subdir || rest.indexOf(subdir) === 0) {
-            var hint = document.getElementById('book-hint');
-            var link = document.createElement('a');
-            link.href = root + subdir;
-            link.textContent = books[i].title;
-            hint.append('Go to the start of ', link, ', or use the search in its sidebar.');
-            hint.hidden = false;
-            return;
-        }
-    }
-})();
-</script>
-""" % (json.dumps(site_path), json.dumps(books, ensure_ascii=False).replace("</", "<\\/"))
-    return _page(f"Page not found – {title}", body, '<meta name="robots" content="noindex">\n', script)
+def write_landing(manifest: dict, built: list, with_pdf: bool):
+    """index.html, 404.html and favicon.svg at the library root (build/landing.py)."""
+    from .macros import mathjax_macros
+    from .math import mathjax_dir
+    out = manifest["out"]
+    macros = {}
+    for entry, book in built:     # every book's macros; the first book's win a clash
+        for name, body in mathjax_macros(book.macros_file).items():
+            macros.setdefault(name, body)
+        if not entry.get("pdf-url"):
+            pdf = entry.get("pdf") or (f"{entry['subdir']}/book/book.pdf"
+                                       if (out / entry["subdir"] / "book" / "book.pdf").is_file() else None)
+            entry["pdf-url"] = pdf
+    manifest["macros"] = macros
+    # The books' fonts and math stylesheet, from the first book that has them
+    font_base = next((f"{e['subdir']}/" for e, _ in built if (out / e["subdir"] / "fonts").is_dir()), None)
+    math_css = next((f"{e['subdir']}/mathjax.css" for e, _ in built if (out / e["subdir"] / "mathjax.css").is_file()),
+                    None)
+    mathjax = built and mathjax_dir(built[0][1])
+    page = None
+    if math_css and mathjax and (mathjax / "startup.js").exists():
+        page = render_landing_math(landing_page(manifest, math=True, font_base=font_base, math_css=math_css),
+                                   mathjax, macros)
+        if page is None:
+            print_warning("Landing page: math rendering failed; titles shown as plain text")
+    if page is None:
+        page = landing_page(manifest, font_base=font_base)
+    (out / "index.html").write_text(page, encoding="utf-8")
+    (out / "404.html").write_text(not_found_page(manifest, font_base=font_base), encoding="utf-8")
+    favicon = ENGINE_ROOT / "templates" / "html" / "favicon.svg"
+    if built:
+        favicon = built[0][1].engine_file("templates/html/favicon.svg")
+    shutil.copy2(favicon, out / "favicon.svg")

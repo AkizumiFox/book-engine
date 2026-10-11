@@ -14,7 +14,7 @@
     "files": [{"from": "notes.html", "to": "notes/notes.html"}],
     "books": [
         {"prefix": "a", "title": "Alpha Book", "short": "A", "path": "library-a", "subdir": "alpha",
-         "series": "First Series", "blurb": "The first volume."},
+         "series": "First Series", "blurb": "The first volume, on \\(\\mathbb{N}\\).", "planned": 3},
         {"prefix": "b", "path": "library-b", "subdir": "beta", "series": "Second Series",
          "canonical": "https://beta.example.net"}
     ]

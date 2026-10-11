@@ -1,5 +1,5 @@
 {
-    "title": "Beta Book",
+    "title": "Beta Book over \\(\\mathbb{R}\\)",
     "author": "Test Author",
     "chapters": ["src/ch01-base"],
     "environment_settings": {

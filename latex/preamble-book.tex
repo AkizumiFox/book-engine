@@ -76,31 +76,7 @@
 
 % Unicode symbols typed directly in prose (e.g. the proof tags (⇒), (⊆))
 \usepackage{newunicodechar}
-\newunicodechar{⇒}{\ensuremath{\Rightarrow}}
-\newunicodechar{⇐}{\ensuremath{\Leftarrow}}
-\newunicodechar{⇔}{\ensuremath{\Leftrightarrow}}
-\newunicodechar{→}{\ensuremath{\to}}
-\newunicodechar{⊆}{\ensuremath{\subseteq}}
-\newunicodechar{⊇}{\ensuremath{\supseteq}}
-\newunicodechar{∈}{\ensuremath{\in}}
-\newunicodechar{≤}{\ensuremath{\le}}
-\newunicodechar{≥}{\ensuremath{\ge}}
-\newunicodechar{≠}{\ensuremath{\ne}}
-\newunicodechar{×}{\ensuremath{\times}}
-\newunicodechar{①}{\textcircled{\scriptsize 1}}
-\newunicodechar{②}{\textcircled{\scriptsize 2}}
-\newunicodechar{③}{\textcircled{\scriptsize 3}}
-\newunicodechar{④}{\textcircled{\scriptsize 4}}
-\newunicodechar{⑤}{\textcircled{\scriptsize 5}}
-\newunicodechar{⑥}{\textcircled{\scriptsize 6}}
-\newunicodechar{⑦}{\textcircled{\scriptsize 7}}
-\newunicodechar{⑧}{\textcircled{\scriptsize 8}}
-\newunicodechar{⑨}{\textcircled{\scriptsize 9}}
-\newunicodechar{∗}{\ensuremath{\ast}}
-\newunicodechar{−}{\ensuremath{-}}
-\newunicodechar{ᵀ}{\texorpdfstring{\ensuremath{^{\top}}}{T}}
-
-\newunicodechar{ }{\,}  % U+2009 thin space, as between initials ("E. H. Moore")
+\input{latex/unicode-chars}
 
 % Images written by Pandoc carry both width and height=\textheight; keep their shape
 \usepackage{graphicx}

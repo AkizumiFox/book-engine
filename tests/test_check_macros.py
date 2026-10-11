@@ -166,17 +166,6 @@ class TestCheckFiles(unittest.TestCase):
         self.assertEqual(len(notices), 1)
 
 
-class TestThisBook(unittest.TestCase):
-
-    def test_sources_and_notation_guide_pass(self):
-        from build.book import Book
-        book = Book(ROOT)
-        if "macro-check" not in book.config:
-            self.skipTest("this book configures no macro check")
-        errors, _ = check_macros.check_book(book)
-        self.assertEqual(errors, [])
-
-
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_build import FixtureBookCase, run_build  # noqa: E402
 

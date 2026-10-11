@@ -47,7 +47,9 @@ def _book_root(value: str) -> Path:
     return path
 
 
-def main():
+def main(default_book=None, argv=None):
+    """The command line. `default_book` is the book built when --book is not given: a
+    book's build.py shim passes its own directory. Without either, the current directory."""
     # Line-buffered output, so progress shows up promptly when piped or logged
     sys.stdout.reconfigure(line_buffering=True)
     print_header("Pandoc Book Build System")
@@ -73,18 +75,21 @@ Examples:
     parser.add_argument("command", choices=["html", "pdf", "book", "all", "serve", "check", "doctor",
                                             "scan", "manifest", "deploy", "clean"])
     parser.add_argument("file", nargs="?", help="html/pdf: build only this source file")
-    parser.add_argument("--book", default=str(ENGINE_ROOT),
-                        help="book directory (containing book.json or config/config.json)")
+    parser.add_argument("--book", default=None,
+                        help="book directory (containing book.json or config/config.json); "
+                             "default: the book whose build.py ran this, else the current directory")
     parser.add_argument("--no-build", action="store_true", help="deploy: copy existing output without building")
     parser.add_argument("--push", action="store_true", help="deploy: commit and push from the deploy directory")
     parser.add_argument("--port", type=int, default=8000, help="serve: port (default 8000)")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.command == "doctor":
+        print_info(f"Engine: {ENGINE_ROOT}")
         sys.exit(0 if doctor() else 1)
 
+    book_dir = args.book or default_book or Path.cwd()
     try:
-        book = Book(_book_root(args.book))
+        book = Book(_book_root(str(book_dir)))
     except FileNotFoundError as e:
         print_error(str(e))
         sys.exit(2)

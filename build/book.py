@@ -87,7 +87,7 @@ def extract_title(path: Path) -> str:
 
 
 class Book:
-    def __init__(self, root: Path | str = ENGINE_ROOT):
+    def __init__(self, root: Path | str):
         self.root = Path(root).resolve()
         for candidate in CONFIG_CANDIDATES:
             if (self.root / candidate).exists():
@@ -173,9 +173,25 @@ class Book:
 
     @property
     def tex_inputs(self) -> str:
-        """TEXINPUTS so LaTeX finds the book's files first, then the engine's styles."""
-        roots = [self.root] if self.root == ENGINE_ROOT else [self.root, ENGINE_ROOT]
-        return ".:" + ":".join(f"{r}//" for r in roots) + ":"
+        """TEXINPUTS so LaTeX finds the book's files first, then the engine's styles.
+
+        When the engine lives inside the book (a submodule in engine/), `book//` would
+        also reach the engine's copies of the styles, in no defined order, and a book's
+        override of one (latex/preamble.tex, say) could lose to the engine's. So the book
+        root is searched flat, then each of its directories except the engine's, then the
+        engine.
+        """
+        if self.root == ENGINE_ROOT:
+            entries = [f"{self.root}//"]
+        elif ENGINE_ROOT.is_relative_to(self.root):
+            engine_top = self.root / ENGINE_ROOT.relative_to(self.root).parts[0]
+            entries = [str(self.root)]
+            entries += [f"{d}//" for d in sorted(self.root.iterdir())
+                        if d.is_dir() and d != engine_top and not d.name.startswith(".")]
+            entries.append(f"{ENGINE_ROOT}//")
+        else:
+            entries = [f"{self.root}//", f"{ENGINE_ROOT}//"]
+        return ".:" + ":".join(entries) + ":"
 
     @property
     def site_url(self) -> str:
@@ -265,6 +281,8 @@ class Book:
         files += [self.html_template, self.latex_template, self.html_styles, self.config_file, self.macros_file]
         # rglob: any subdirectory of latex/ counts too
         files += sorted((ENGINE_ROOT / "latex").rglob("*"))
+        if self.root != ENGINE_ROOT:   # the book's own LaTeX overrides (latex/preamble.tex, ...)
+            files += sorted((self.root / "latex").rglob("*"))
         for path in files:
             if path.is_file():
                 digest.update(str(path).encode())

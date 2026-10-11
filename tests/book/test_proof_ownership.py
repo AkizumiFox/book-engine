@@ -8,13 +8,16 @@ result with `::: {.proof of="thm-..."}`.
 """
 
 import re
+import sys
 import unittest
 from pathlib import Path
 
-SRC = Path(__file__).resolve().parent.parent / "src"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from bookenv import SRC  # noqa: E402
 # A statement's div may carry classes beside its id (`{#thm-foo .optional}`), and a
 # proof after one still belongs to it.
-LABEL = re.compile(r'^:{3,}\s*\{#((thm|lem|prp|cor|cnj|def|exm|exr)-[a-z0-9-]+)(\s+\.[a-z0-9-]+)*\s*\}')
+LABEL = re.compile(r'^:{3,}\s*\{#((thm|lem|prp|cor|cnj|def|exm|exr|ax)-[a-z0-9-]+)(\s+\.[a-z0-9-]+)*\s*\}')
 PROOF = re.compile(r'^:{3,}\s*\{\.proof(\s+of="([a-z0-9-]+)")?\s*\}')
 
 

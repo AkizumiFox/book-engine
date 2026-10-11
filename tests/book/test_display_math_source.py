@@ -19,12 +19,15 @@ degree sign as a raw glyph, and the printed book read "the angle is less than
 """
 
 import re
+import sys
 import unittest
 from pathlib import Path
 
-SRC = Path(__file__).resolve().parent.parent / "src"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from bookenv import SRC  # noqa: E402
 LIST_MARKER = re.compile(r'^\s{0,3}([-+*]|\d+[.)]|\(\w{1,4}\)|[a-zA-Z][.)]|#\.)\s')
-MATH_SPAN = re.compile(r'\\\((.*?)\\\)|\\\[(.*?)\\\]', re.S)
+# (?<!\\) so a LaTeX line break with spacing, \\\\[3ex], is not read as the start of a display
+MATH_SPAN = re.compile(r'(?<!\\)\\\((.*?)\\\)|(?<!\\)\\\[(.*?)\\\]', re.S)
 
 
 def display_lines():

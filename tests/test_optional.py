@@ -172,25 +172,5 @@ class TestCommandLine(unittest.TestCase):
         self.assertIn("run ./build.py html first", err.getvalue())
 
 
-class TestAgainstTheRealBook(unittest.TestCase):
-    """Skipped unless the book has been built. The gate, on the book itself."""
-
-    def setUp(self):
-        if not reading_path.INDEX.exists():
-            self.skipTest("run ./build.py html first")
-        self.labels = json.loads(reading_path.INDEX.read_text(encoding="utf-8"))["crossref_labels"]
-
-    def test_no_proof_in_the_book_rests_on_an_optional_result(self):
-        violations = check_optional.find_violations(self.labels)
-        self.assertEqual(violations, [], check_optional.report(violations))
-
-    def test_the_marked_results_are_marked_on_purpose(self):
-        """Only a big environment may be optional: nobody skips a remark on purpose."""
-        big = {"theorem", "lemma", "corollary", "proposition", "example", "definition"}
-        for name, rec in self.labels.items():
-            if rec.get("optional"):
-                self.assertIn(rec.get("type"), big, name)
-
-
 if __name__ == "__main__":
     unittest.main()

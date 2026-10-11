@@ -37,15 +37,5 @@ class TestParseMacros(unittest.TestCase):
         self.assertIn("coloneqq", macros)
         self.assertEqual(macros["bm"], [r"\boldsymbol{#1}", 1])
 
-    def test_project_macro_file_parses(self):
-        macros_file = Path(__file__).resolve().parent.parent / "latex" / "macros.tex"
-        if not macros_file.exists():
-            self.skipTest("no latex/macros.tex")
-        macros = mathjax_macros(macros_file)
-        self.assertEqual(macros["v"], r"\mathbf{v}")
-        self.assertEqual(macros["nQ"], r"\mathbb{Q}")
-        self.assertEqual(macros["norm"][1], 1)
-
-
 if __name__ == "__main__":
     unittest.main()

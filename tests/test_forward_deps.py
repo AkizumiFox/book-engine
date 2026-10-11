@@ -135,7 +135,6 @@ class TestForwardDeps(unittest.TestCase):
         self.assertIn("forward: thm-notation", out)
 
 
-
 EARLY = "ch01-a/02-x.html"
 LATE = "ch03-b/01-y.html"
 
@@ -224,29 +223,6 @@ class TestCommandLine(unittest.TestCase):
             _sys.argv = argv
         self.assertEqual(code, 0, out)
         self.assertIn("signpost: thm-early", out)
-
-
-class TestAgainstTheRealBook(unittest.TestCase):
-    """Skipped unless the book has been built. The gate, on the book itself."""
-
-    def setUp(self):
-        index = Path(__file__).resolve().parent.parent / "_build" / "crossref_labels.json"
-        if not index.exists():
-            self.skipTest("run ./build.py html first")
-        self.tool = load_tool()
-        self.labels = json.loads(index.read_text(encoding="utf-8"))["crossref_labels"]
-
-    def test_no_proof_in_the_book_points_forward(self):
-        violations = self.tool.find_violations(self.labels)
-        self.assertEqual(violations, [], self.tool.report(violations))
-
-    def test_the_signposts_are_all_soft(self):
-        """Forward pointers are allowed as signposts (examples, remarks, exercises), never
-        as steps of a proof. (The regression book also pinned their count; this book is too
-        young to have a count worth pinning.)"""
-        order = self.tool.place(self.labels)
-        rows = self.tool.forward_citations(self.labels, order)
-        self.assertTrue(all(not row[3] for row in rows))
 
 
 if __name__ == "__main__":

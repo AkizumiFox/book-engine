@@ -73,10 +73,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parent
-ROOT = TOOLS.parent
-INDEX = ROOT / "_build" / "crossref_labels.json"
-NAVIGATION = ROOT / "_build" / "html" / "navigation.json"
-CONFIG = ROOT / "config" / "config.json"
+# The book's files, relative to the current directory: run the tool from the book's root
+# (the engine may live elsewhere, e.g. in the book's engine/ submodule).
+INDEX = Path("_build") / "crossref_labels.json"
+NAVIGATION = Path("_build") / "html" / "navigation.json"
+CONFIG_CANDIDATES = (Path("config") / "config.json", Path("book.json"))
+
+
+def default_config() -> Path:
+    """The book's config in the current directory: config/config.json, else book.json."""
+    return next((p for p in CONFIG_CANDIDATES if p.exists()), CONFIG_CANDIDATES[0])
 
 
 def _load_forward_deps():
@@ -355,14 +361,14 @@ def load_graph(index=INDEX, navigation=NAVIGATION, hard_kinds=HARD_KINDS) -> Sec
     return graph_from_labels(labels, load_titles(navigation), hard_kinds)
 
 
-def load_profiles(config=CONFIG) -> list:
+def load_profiles(config=None) -> list:
     """The reader profiles, from `config/config.json`'s `reading-paths`.
 
     Each is `{"slug", "name", "description", "targets"}`. They live in the config
     so that the author can add one, or change where one aims, without touching
     code; the build reads the same list to generate the pages.
     """
-    path = Path(config)
+    path = Path(config) if config is not None else default_config()
     if not path.exists():
         return []
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -402,7 +408,8 @@ def main(argv=None):
     parser.add_argument("--verify", action="store_true",
                         help="only check that the path is closed; exit 1 if it is not")
     parser.add_argument("--index", default=INDEX, help="path to crossref_labels.json")
-    parser.add_argument("--config", default=CONFIG, help="path to config.json (for --profile)")
+    parser.add_argument("--config", default=None,
+                        help="path to the book's config (for --profile; default config/config.json or book.json)")
     args = parser.parse_args(argv)
 
     profiles = load_profiles(args.config)

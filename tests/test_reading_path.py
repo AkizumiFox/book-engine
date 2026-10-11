@@ -271,39 +271,6 @@ class TestCommandLine(unittest.TestCase):
         self.assertIn("run ./build.py html first", err.getvalue())
 
 
-class TestAgainstTheRealBook(unittest.TestCase):
-    """Skipped unless the book has been built: the sections this book's profiles aim at.
-
-    The targets are taken from `config/config.json` rather than written here, so that
-    adding a reader profile puts its targets under this check without touching the
-    tests, and so that a target that no longer names a section fails loudly.
-    """
-
-    def setUp(self):
-        if not reading_path.INDEX.exists():
-            self.skipTest("run ./build.py html first")
-        self.graph = reading_path.load_graph()
-        self.TARGETS = [target for profile in reading_path.load_profiles()
-                        for target in profile.get("targets") or []]
-        if not self.TARGETS:
-            self.skipTest("no reader profiles in the config")
-
-    def test_each_advertised_path_is_closed(self):
-        for target in self.TARGETS:
-            for hard_only in (True, False):
-                path = self.graph.closure([target], hard_only=hard_only)
-                check = self.graph.is_closed(path)
-                self.assertTrue(check, f"{target} (hard_only={hard_only}):\n{check.report()}")
-                self.assertIn(target, path.sections)
-
-    def test_every_citation_has_a_recorded_kind(self):
-        self.assertEqual(self.graph.unknown_kinds, 0)
-
-    def test_no_optional_result_carries_a_hard_edge(self):
-        """The marker's whole effect on the graph, checked on the book itself."""
-        self.assertFalse([c.site() for c in self.graph.citations if c.from_optional and c.hard])
-
-
 class TestExercisePolicy(unittest.TestCase):
     """`hard_kinds` is the policy knob, and the solution is the case that needs one."""
 
@@ -346,40 +313,6 @@ class TestProfiles(unittest.TestCase):
 
     def test_a_missing_config_is_not_an_error(self):
         self.assertEqual(reading_path.load_profiles("/nonexistent/config.json"), [])
-
-    def test_the_books_own_profiles_are_well_formed(self):
-        for profile in reading_path.load_profiles():
-            for key in ("slug", "name", "description", "targets"):
-                self.assertTrue(profile.get(key), f"{profile.get('slug')}: {key}")
-            self.assertRegex(profile["slug"], r"^[a-z0-9-]+$")
-
-
-class TestPublishedProfilesAgainstTheRealBook(unittest.TestCase):
-    """Skipped unless the book has been built: every published path must be closed."""
-
-    def setUp(self):
-        if not reading_path.INDEX.exists():
-            self.skipTest("run ./build.py html first")
-        self.profiles = reading_path.load_profiles()
-        if not self.profiles:
-            self.skipTest("no reader profiles in the config")
-
-    def test_every_published_path_is_closed_in_both_variants(self):
-        for kinds in (reading_path.HARD_KINDS, reading_path.EXERCISE_KINDS):
-            graph = reading_path.load_graph(hard_kinds=kinds)
-            for profile in self.profiles:
-                path = graph.closure(profile["targets"])
-                check = graph.is_closed(path)
-                self.assertTrue(check, f"{profile['slug']}:\n{check.report()}")
-                for target in profile["targets"]:
-                    self.assertIn(target, path.sections)
-
-    def test_every_target_names_a_real_section(self):
-        graph = reading_path.load_graph()
-        for profile in self.profiles:
-            for target in profile["targets"]:
-                self.assertEqual(graph.resolve(target), target)
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -1160,7 +1160,9 @@ local function collect_labels(div)
             local tex = ""
             if is_preface then
                 last_book_part = -1
-                tex = "\\prefacebanner{Preface}\\setcounter{part}{-1}"
+                -- the preface, or a back-matter page under its own banner (data-banner)
+                local banner = attrs["data-banner"] and pandoc.utils.stringify(attrs["data-banner"]) or "Preface"
+                tex = "\\prefacebanner{" .. banner .. "}\\setcounter{part}{-1}"
             elseif last_book_part ~= new_c then
                 last_book_part = new_c
                 local part_title = attrs["data-part-title"] and pandoc.utils.stringify(attrs["data-part-title"]) or ""

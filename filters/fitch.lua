@@ -1,7 +1,7 @@
 --[[
 Fitch Filter
 ============
-HTML output only. A raw LaTeX block holding Fitch-style derivations (the `nd` environment
+HTML output (and, for one job, LaTeX: see "Assumption purposes"). A raw LaTeX block holding Fitch-style derivations (the `nd` environment
 of fitch.sty, as a book's latex/fitch-book.sty sets it up) becomes HTML: a grid of rows,
 each a line number, the formula with its scope bars, and the justification. Formulas,
 flag names and rule names are left as \( ... \) for MathJax, so they are set in the page's
@@ -10,8 +10,8 @@ math font, with the book's macros, and follow the theme (dark mode included).
 Runs before filters/tikz.lua and only when the metadata says so ("fitch-html", set by
 build/pandoc.py from the config key of that name; on by default when the book ships
 fitch-book.sty). A block it cannot read is left alone, so tikz.lua compiles it to an
-SVG as before, and a warning names the page and the reason. The LaTeX/PDF output never
-sees this filter.
+SVG as before, and a warning names the page and the reason. The LaTeX/PDF output is
+left alone unless purposes are inferred (below).
 
 The layout follows fitch.sty: one vertical bar for the whole derivation (outerline), one
 more per open box (\open ... \close), indented by a fixed step; a bar starts a little
@@ -24,14 +24,27 @@ line references print the cited line's number ("3-5" as 3–5).
 
 The rule macros (\ai, \ie, \raa, ...) are read from the book's fitch-book.sty
 (`\def\ai{\by{$\wedge$I}}`); fitch.sty's own set is the fallback. A rule name is set
-with the book's \rulename macro when its macros define one, else \mathrm.
+with the book's \rulename macro when its macros define one, else \mathrm. \by{TAUT}{refs}
+is set as a rule name too.
+
+Assumption purposes. An assumption may carry `\purpose{\ii}` in its justification slot
+(fitch-book.sty prints "asm, for ->I"); the HTML prints the same, muted (.fitch-purpose).
+With the metadata "fitch-purposes": "infer" (build/pandoc.py, from the book config key of
+that name) every assumption without a justification whose box is cited as i-j by a rule
+that closes boxes (->I, not-I, RAA, or-E, iff-I, forall-I, exists-E) gets the purpose of
+that rule, in HTML and -- this is the one thing the filter does for LaTeX -- in the PDF,
+by writing \purpose{...} into the raw block. Without that key the LaTeX output is untouched.
 ]]
 
-if not FORMAT:match("html") then
+local html = FORMAT:match("html") ~= nil
+if not html and not FORMAT:match("latex") then
     return {}
 end
 
 local enabled = false
+local infer_purposes = false
+-- the rules that close a box, i.e. what an assumption may be made for
+local BOX_RULES = { ii = true, ni = true, raa = true, oe = true, bi = true, Ai = true, Ee = true }
 local rule_macro = "\\mathrm"
 local source_path = "?"
 local RULES = {   -- fitch.sty's default \ndrules, replaced by the book's sty when it has any
@@ -253,6 +266,7 @@ local function parse_nd(body, options)
             guard, pos = read_opt(body, pos)
             formula, pos = read_group(body, pos)
             if not label or not formula then error("\\" .. name .. " needs {label} {formula}", 0) end
+            local formula_end = pos
             if formula:find("\\\\", 1, true) then error("a multi-line formula", 0) end
             if guard and trim(guard) ~= "" then
                 if #stack == 0 then error("a flag outside any box", 0) end
@@ -282,7 +296,8 @@ local function parse_nd(body, options)
             if label ~= "" then numbers[label] = display end
 
             local row = { display = display, formula = formula, hypo = name == "hypo", underline = name == "hypo",
-                          outer_top = outer.fresh, levels = {} }
+                          outer_top = outer.fresh, levels = {}, label = label, depth = #stack,
+                          formula_end = formula_end }
             outer.fresh = false
             for _, box in ipairs(stack) do
                 table.insert(row.levels, { top = box.fresh, guard = box.guard })
@@ -301,12 +316,18 @@ local function parse_nd(body, options)
                     text, pos = read_group(body, pos)
                     refs, pos = read_group(body, pos)
                     if not text or not refs then error("\\by needs {text} {refs}", 0) end
-                    row.just = { text = text_html(text), refs = refs }
+                    row.just = { text = trim(text) == "TAUT" and rule_html("TAUT") or text_html(text), refs = refs }
+                elseif just == "purpose" then
+                    local arg
+                    arg, pos = read_group(body, pos)
+                    local rule = arg and trim(arg):match("^\\(%a+)$")
+                    if not rule or not RULES[rule] then error("\\purpose needs one rule macro", 0) end
+                    row.purpose = rule
                 elseif RULES[just] then
                     local refs
                     refs, pos = read_group(body, pos)
                     if not refs then error("\\" .. just .. " needs {refs}", 0) end
-                    row.just = { text = rule_html(RULES[just]), refs = refs }
+                    row.just = { text = rule_html(RULES[just]), refs = refs, rule = just }
                 else
                     error("unknown justification \\" .. just, 0)
                 end
@@ -317,6 +338,35 @@ local function parse_nd(body, options)
     end
     if #rows == 0 then error("no lines", 0) end
     return { rows = rows, numbers = numbers, outerline = outerline }
+end
+
+-- "fitch-purposes": "infer": a rule citing a box i-j gives the assumptions that open it
+-- (row i and the assumptions right after it in the same box) that rule as their purpose.
+-- Returns the rows it gave one.
+local function infer(nd)
+    local by_label, given = {}, {}
+    for k, row in ipairs(nd.rows) do
+        if row.label ~= "" then by_label[row.label] = k end
+    end
+    for _, row in ipairs(nd.rows) do
+        local rule = row.just and row.just.rule
+        if rule and BOX_RULES[rule] then
+            for first in row.just.refs:gmatch("([^,%s]+)%s*%-") do
+                local k = by_label[first]
+                local depth = k and nd.rows[k].depth
+                while k and nd.rows[k].hypo and nd.rows[k].depth == depth do
+                    local r = nd.rows[k]
+                    if not r.purpose and not r.just then
+                        r.purpose = rule
+                        table.insert(given, r)
+                    end
+                    k = k + 1
+                    if k > #nd.rows then break end
+                end
+            end
+        end
+    end
+    return given
 end
 
 local function render_nd(nd)
@@ -337,7 +387,9 @@ local function render_nd(nd)
         table.insert(body, '<span class="fitch-formula' .. (row.underline and " fitch-assumption" or "") .. '">'
                            .. math(row.formula) .. "</span>")
         local just = ""
-        if row.just then
+        if row.purpose then
+            just = '<span class="fitch-purpose">asm, for ' .. rule_html(RULES[row.purpose]) .. "</span>"
+        elseif row.just then
             local refs = refs_html(row.just.refs, nd.numbers)
             if row.just.text ~= "" and refs ~= "" then
                 just = row.just.text .. " " .. refs
@@ -389,7 +441,9 @@ local function convert(text)
             options, body = body:match("^%s*%[([^%]]*)%](.*)$")
             if not options then body = src:sub(start + 10, finish - 1) end
             if body:find("\\begin{nd}", 1, true) then error("\\begin{nd} inside a derivation", 0) end
-            table.insert(parts, render_nd(parse_nd(body, options)))
+            local nd = parse_nd(body, options)
+            if infer_purposes then infer(nd) end
+            table.insert(parts, render_nd(nd))
             count = count + 1
             pos = skip_space(src, finish + 8)
             if src:sub(pos, pos + #close - 1) ~= close then error("a derivation's math delimiters do not match", 0) end
@@ -413,8 +467,45 @@ local function convert(text)
            .. table.concat(parts) .. "</div>"
 end
 
+-- LaTeX output, "fitch-purposes": "infer": the raw block with \purpose{\rule} written after
+-- each assumption infer() gives a purpose (nil when there is none, or a derivation cannot
+-- be read: the block is then left as it is). Comments inside a derivation are dropped.
+local function annotate_latex(text)
+    local out, pos, changed = {}, 1, false
+    while true do
+        local s, e = text:find("\\begin{nd}", pos, true)
+        if not s then break end
+        local finish = text:find("\\end{nd}", e + 1, true)
+        if not finish then error("\\begin{nd} without \\end{nd}", 0) end
+        local raw = strip_comments(text:sub(e + 1, finish - 1))
+        local options, body = raw:match("^%s*%[([^%]]*)%](.*)$")
+        local head = ""
+        if options then head = raw:sub(1, #raw - #body) else body = raw end
+        local given = infer(parse_nd(body, options))
+        if #given > 0 then
+            table.sort(given, function(a, b) return a.formula_end > b.formula_end end)
+            for _, r in ipairs(given) do
+                body = body:sub(1, r.formula_end - 1) .. " \\purpose{\\" .. r.purpose .. "}" .. body:sub(r.formula_end)
+            end
+            changed = true
+        end
+        table.insert(out, text:sub(pos, e))
+        table.insert(out, head .. body)
+        pos = finish
+    end
+    if not changed then return nil end
+    table.insert(out, text:sub(pos))
+    return table.concat(out)
+end
+
 local function RawBlock(block)
     if block.format ~= "tex" and block.format ~= "latex" then return nil end
+    if not html then
+        if not infer_purposes or not block.text:find("\\begin{nd}", 1, true) then return nil end
+        local ok, result = pcall(annotate_latex, block.text)
+        if ok and result then return pandoc.RawBlock(block.format, result) end
+        return nil
+    end
     if not block.text:find("\\begin{nd}", 1, true) then return nil end
     local ok, result = pcall(convert, block.text)
     if ok and result then
@@ -445,6 +536,8 @@ end
 local function Meta(meta)
     local flag = meta["fitch-html"]
     enabled = flag ~= nil and pandoc.utils.stringify(flag) == "true"
+    infer_purposes = meta["fitch-purposes"] ~= nil and pandoc.utils.stringify(meta["fitch-purposes"]) == "infer"
+    if not html then enabled = infer_purposes end
     if meta["fitch-sty"] then read_rules(pandoc.utils.stringify(meta["fitch-sty"])) end
     if meta["fitch-rulename"] and pandoc.utils.stringify(meta["fitch-rulename"]) == "true" then
         rule_macro = "\\rulename"

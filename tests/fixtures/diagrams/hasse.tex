@@ -1,0 +1,7 @@
+\begin{tikzpicture}[hasse]
+  \node (e) at (0,0) {$\varnothing$};
+  \node (a) at (-1.2,1.1) {$\{a\}$};
+  \node (b) at (1.2,1.1) {$\{b\}$};
+  \node (t) at (0,2.2) {$\{a,b\}$};
+  \path (e) edge (a) (e) edge (b) (a) edge (t) (b) edge (t);
+\end{tikzpicture}

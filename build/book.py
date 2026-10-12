@@ -45,9 +45,15 @@ class Page:
     title: str
     html_path: str            # relative to the HTML output root, e.g. "ch01-vector-spaces/03-span.html"
     neighbours: dict = field(default_factory=dict)  # "prev"/"next" -> Page
+    back: bool = False        # a back-matter page (config "back-matter"), e.g. a glossary
 
     @property
     def is_preface(self) -> bool:
+        return self.chapter is None and not self.back
+
+    @property
+    def unnumbered(self) -> bool:
+        """The preface or a back-matter page: outside every chapter, nothing numbered."""
         return self.chapter is None
 
     @property
@@ -233,6 +239,12 @@ class Book:
         return None
 
     @property
+    def fitch_purposes_inferred(self) -> bool:
+        """Config "fitch-purposes": "infer": filters/fitch.lua prints each assumption's purpose
+        ("asm, for ->I"), read off the rule that closes its box, in HTML and in the PDF."""
+        return self.config.get("fitch-purposes") == "infer" and self.fitch_sty is not None
+
+    @property
     def fitch_html(self) -> bool:
         """Whether the website draws `nd` derivations as HTML (filters/fitch.lua) rather than
         as SVGs: config "fitch-html", by default on when the book ships fitch-book.sty."""
@@ -349,7 +361,10 @@ class Book:
 
     @cached_property
     def pages(self) -> list[Page]:
-        """All pages in reading order: preface, then each chapter's index and sections."""
+        """All pages in reading order: preface, then each chapter's index and sections, then
+        the back matter (config "back-matter": a list of Markdown files, e.g.
+        ["src/glossary.md"], each a page <stem>.html at the site root, unnumbered like the
+        preface)."""
         pages = []
         preface = self.path(self.config.get("preface", str(self.src_dir.relative_to(self.root) / "index.md")))
         if preface.exists():
@@ -367,6 +382,11 @@ class Book:
             for number, source in enumerate(sections, start=1):
                 pages.append(Page(source=source, chapter=chapter, section=number, title=extract_title(source),
                                   html_path=f"{chapter.slug}/{source.stem}.html"))
+        for entry in self.config.get("back-matter", []) or []:
+            source = self.path(entry)
+            if source.is_file():
+                pages.append(Page(source=source, chapter=None, section=0, title=extract_title(source),
+                                  html_path=f"{source.stem}.html", back=True))
         for previous, following in zip(pages, pages[1:]):
             previous.neighbours["next"] = following
             following.neighbours["prev"] = previous

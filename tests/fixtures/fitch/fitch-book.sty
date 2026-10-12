@@ -1,8 +1,9 @@
 % fitch-book.sty -- Fitch-style natural deduction for this book, on Selinger and Zach's fitch.sty.
 %
-% Loaded by latex/preamble.tex (the PDF) and by build/tikz.py's standalone template (the
-% website, where each derivation is compiled to an SVG like a TikZ picture; see
-% filters/tikz.lua). A derivation is a raw LaTeX block:
+% Loaded by latex/preamble.tex (the PDF). On the website the engine's filters/fitch.lua
+% reads the same block and draws it in HTML (its rule macros come from this file); a block
+% it cannot read falls back to build/tikz.py's standalone template, which loads this file
+% and compiles the derivation to an SVG. A derivation is a raw LaTeX block:
 %
 %   ```{=latex}
 %   \begin{center}
@@ -23,11 +24,22 @@
 % it); \have is a derived line. Two sibling boxes are simply \close \open. A justification is
 % one of the rule macros below, or \by{any text}{line refs}. Line refs are "1,3" or "3-5".
 %
+% An assumption may state its purpose, the rule that will close its box:
+%   \hypo {3} {P} \purpose{\ii}        prints "asm, for ->I" (muted) in its justification column
+% The argument is one rule macro that closes a box (\ii \ni \raa \oe \bi \Ai \Ee);
+% tools/check_fitch.py checks it against the line that closes the box. With the book config
+% "fitch-purposes": "infer" the engine (filters/fitch.lua) writes \purpose itself on every
+% assumption whose box a rule closes, in HTML and in the PDF.
+%
+% \taut{refs} (or \by{TAUT}{refs}) is a truth-functional step over the propositional
+% skeleton (atomic and quantified subformulas as letters), checked by truth table.
+%
 % The rule macros exist ONLY inside the nd environment (fitch.sty defines them locally when
 % the environment starts), so \ne keeps meaning "not equal" and \ni "contains" everywhere else.
 % The names follow fitch.sty; the symbols follow the book (-> for implication, not =>).
 \ProvidesPackage{fitch-book}
 \RequirePackage{amssymb}
+\RequirePackage{xcolor}
 \RequirePackage[rules=bookndrules,justformat=bookjustformat]{fitch}
 % "->E 1, 3", as the prose writes it (fitch.sty's default puts a comma after the rule name).
 \newcommand{\bookjustformat}[2]{#1\ #2}
@@ -57,7 +69,14 @@
   \def\lem{\by{LEM}}%
   \def\ds{\by{DS}}%
   \def\dm{\by{DM}}%
-  \def\ctp{\by{CP}}}
+  \def\ctp{\by{CP}}%
+  \def\taut{\by{TAUT}}}%       truth-functional step (Chapter 3 on)
+%
+% \purpose{\ii}: the rule macro is expanded with \by redefined to store its rule name.
+\definecolor{fitchpurpose}{gray}{0.42}
+\newcommand{\purpose}[1]{%
+  \begingroup\def\by##1{\gdef\fb@purpose{##1}}#1\endgroup
+  \by{\textcolor{fitchpurpose}{asm, for \fb@purpose}}{}}
 %
 % Schema option: \begin{nd}[schema] makes each line print its own label instead of a number,
 % for a rule pattern whose lines are i, j, k, ...; a line with an empty label ({} {\vdots})

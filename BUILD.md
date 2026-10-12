@@ -116,6 +116,13 @@ Engine checkers available as `engine:<name>`:
 - Labeled lists: `::: {.enumerate options="label=(VS\arabic*)"}` around a numbered list.
 - Figures: TikZ or tikz-cd (e.g. exported from quiver) as raw LaTeX. The PDF uses it directly;
   the website gets an SVG compiled once and cached in `_build/cache/tikz/`.
+  `latex/book-diagrams.sty` (loaded for both) has templates for the common small pictures:
+  a finite structure as an arrow diagram (`structure`, `elt`, `rel`, `universe`), a Hasse
+  diagram (`hasse`, `hpt`), a truth or refutation tree (`tree`, `\ticked`, `\closedbranch`),
+  the square of opposition (`\oppositionsquare{A}{E}{I}{O}` inside
+  `\begin{tikzpicture}[square]`) and a flowchart (`flowchart`, `fc start`, `fc step`,
+  `fc test`, `fc arrow`); `tests/fixtures/diagrams/` has an example of each. Write the
+  `tikzpicture` out: the website finds a picture by it, so it cannot sit inside a macro.
 - Second-reading fold: `::: {.second-reading title="Why the order is loss-free"}` … `:::`
   around material a first reading may skip (a meta-proof whose statement stays on the
   main line, edge cases, a long justification). See below.
@@ -264,8 +271,13 @@ Config keys: `title`, `author`, `chapters` (directory strings, or `{"dir": …, 
 `styles`, `repo-url` (optional source link in the sidebar), `source-branch` (default
 `main`, for that link), `issues-url` (optional, e.g.
 `https://github.com/USER/REPO/issues/new`, for the "Report it" link), `prerender-math`
-(default true), `fitch-html` (see below), `reading-paths`, `mention-exempt-titles`, `redirects`, `deploy-dir`,
+(default true), `fitch-html` and `fitch-purposes` (see below), `reading-paths`, `mention-exempt-titles`, `redirects`, `deploy-dir`,
 `deploy-repo`, `deploy-domain`, `deploy-push-url`, and:
+
+- `back-matter` -- Markdown files that follow the last chapter, e.g. `["src/glossary.md"]`:
+  each is a page `<stem>.html` at the site root, unnumbered like the preface, linked from
+  the sidebar (beside "List of results"), next after the last section, and at the end of
+  the book PDF under a banner with its title. A listed file that does not exist is skipped.
 
 - `site-url` -- the address the site is published at when it is not the root of
   `deploy-domain`, e.g. `https://example.org/library/analysis/`. Canonical links, the
@@ -434,6 +446,14 @@ like a TikZ picture instead, with a warning naming the page and the reason. Conf
 `"fitch-html"` turns the HTML drawing on or off; the default is on when the book ships
 fitch-book.sty (`false` sends every derivation down the SVG path). Without that file and
 key nothing changes.
+
+An assumption may carry its purpose, `\hypo {3} {P} \purpose{\ii}`: the HTML prints
+"asm, for →I" in the justification column, muted (`.fitch-purpose`), as fitch-book.sty does
+in the PDF. Config `"fitch-purposes": "infer"` has the filter supply it: every assumption
+without a justification whose box is cited as `i-j` by a rule that closes boxes (`\ii \ni
+\raa \oe \bi \Ai \Ee`) gets that rule as its purpose, on the website and in the section
+and book PDFs (there the filter writes `\purpose{...}` into the raw block before LaTeX sees
+it; without the key the LaTeX output is untouched). `\by{TAUT}{refs}` is set as a rule name.
 
 ## Automatic deploys
 

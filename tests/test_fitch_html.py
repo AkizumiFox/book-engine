@@ -119,7 +119,7 @@ class TestFitchFilter(unittest.TestCase):
     def test_every_rule_macro_of_the_sty(self):
         sty = re.sub(r"%[^\n]*", "", STY.read_text())
         macros = re.findall(r"\\def\\([A-Za-z]+)\{\\by\{(.*?)\}\}", sty)
-        self.assertEqual(len(macros), 26)
+        self.assertEqual(len(macros), 27)
         r = rows(self.parts["rules"])
         self.assertEqual(len(r), len(macros))
         for (name, text), row in zip(macros, r):
@@ -165,9 +165,43 @@ class TestFitchFilter(unittest.TestCase):
 
     def test_latex_output_is_untouched(self):
         tex = run_filter(FIXTURES / "derivations.md", to="latex").stdout
-        self.assertEqual(tex.count(r"\begin{nd}"), 12)
+        self.assertEqual(tex.count(r"\begin{nd}"), 13)
         self.assertIn(r"\open[x_0]", tex)
         self.assertNotIn("fitch-row", tex)
+
+    def test_stated_purpose_and_taut(self):
+        r = rows(self.parts["purposes"])
+        self.assertEqual(r[1]["just"], r'<span class="fitch-purpose">asm, for \(\rulename{{{\to}}I}\)</span>')
+        self.assertTrue(r[1]["assumption"])
+        self.assertEqual([r[4]["just"], r[5]["just"]], ["", ""])        # nothing inferred by default
+        self.assertEqual(r[9]["just"], r"\(\rulename{TAUT}\)")           # \by{TAUT}: a rule name
+        self.assertNotIn("fitch-purpose", self.parts["nested"])
+
+    def test_inferred_purposes(self):
+        parts = sections(run_filter(FIXTURES / "derivations.md", **{"fitch-purposes": "infer"}).stdout)
+        purpose = r'<span class="fitch-purpose">asm, for \(\rulename{%s}\)</span>'
+        r = rows(parts["purposes"])
+        self.assertEqual(r[1]["just"], purpose % r"{{\to}}I")             # stated: kept
+        self.assertEqual([r[4]["just"], r[5]["just"]], [purpose % "RAA"] * 2)   # both assumptions of the box
+        self.assertEqual(r[0]["just"], "")                               # a premise has none
+        r = rows(parts["nested"])
+        self.assertEqual([r[2]["just"], r[4]["just"]], [purpose % r"{{\to}}I"] * 2)
+        r = rows(parts["siblings"])
+        self.assertEqual([r[1]["just"], r[3]["just"]], [purpose % r"{\vee}E"] * 2)
+        r = rows(parts["flagged"])
+        self.assertIn("fitch-purpose", "".join(x["just"] for x in r))
+
+    def test_latex_purposes_only_when_inferred(self):
+        tex = run_filter(FIXTURES / "derivations.md", to="latex").stdout
+        self.assertEqual(tex.count(r"\purpose"), 1)                      # the stated one
+        tex = run_filter(FIXTURES / "derivations.md", to="latex", **{"fitch-purposes": "infer"}).stdout
+        self.assertIn(r"\hypo {5} {\neg Q} \purpose{\raa}", tex)
+        self.assertIn(r"\hypo {6} {P} \purpose{\raa}", tex)
+        self.assertIn(r"\hypo {3} {P} \purpose{\ii}", tex)
+        self.assertIn(r"\hypo {2} {P} \purpose{\ii}", tex)                # not doubled
+        self.assertNotIn(r"\purpose{\ii} \purpose", tex)
+        self.assertNotIn(r"\hypo {1} {P \to Q} \purpose", tex)
+        self.assertEqual(tex.count(r"\begin{nd}"), 13)
 
     def test_mathrm_without_a_rulename_macro(self):
         html = run_filter(FIXTURES / "derivations.md", **{"fitch-rulename": False}).stdout

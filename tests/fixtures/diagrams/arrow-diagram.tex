@@ -1,0 +1,10 @@
+\begin{tikzpicture}[structure]
+  \node[elt, label=below:$0$] (a) at (0,0) {};
+  \node[elt, label=below:$1$] (b) at (1.6,0) {};
+  \node[elt, label=below:$2$] (c) at (3.2,0) {};
+  \draw[rel] (a) to[bend left] (b);
+  \draw[rel] (b) to[bend left] (a);
+  \draw[rel] (b) -- (c);
+  \draw[rel] (c) to[loop above] (c);
+  \node[universe, fit=(a)(b)(c)] {};
+\end{tikzpicture}

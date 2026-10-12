@@ -177,6 +177,8 @@ def build_book(book: Book) -> bool:
         attrs = f'data-chapter="{page.chapter_number}" data-section="{page.section}"'
         if page.is_preface:
             attrs += ' data-preface="true"'
+        elif page.back:   # back matter: unnumbered like the preface, under its own banner
+            attrs += f' data-preface="true" data-banner="{page.title}"'
         if page.section == 0 and page.chapter and page.chapter.part:
             attrs += f' data-part-title="{page.chapter.part}"'
         if page.section >= 1:
@@ -195,6 +197,8 @@ def build_book(book: Book) -> bool:
         "book-root": str(book.root),
         "engine-root": str(book.filters_dir.parent),
         "source-path": "book",
+        **({"fitch-purposes": "infer", "fitch-sty": str(book.fitch_sty)}
+           if book.fitch_purposes_inferred else {}),
         **({"external-books-file": str(external_file(book))}
            if book.config.get("external-books") and external_file(book).exists() else {}),
     }), encoding="utf-8")
@@ -215,6 +219,8 @@ def build_book(book: Book) -> bool:
         "--template", str(book.latex_template),
         "--lua-filter", str(filters / "format-visibility.lua"),
         "--lua-filter", str(filters / "components.lua"),
+        # fitch.lua does nothing to LaTeX unless "fitch-purposes" is "infer"
+        "--lua-filter", str(filters / "fitch.lua"),
         "--lua-filter", str(filters / "enumerate.lua"),
         "--lua-filter", str(filters / "theorems.lua"),
         "--include-in-header", str(book.engine_file("latex/preamble-book.tex")),

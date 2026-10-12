@@ -298,6 +298,8 @@ def navigation_data(book: Book) -> dict:
             {"title": "Reading paths", "path": "paths.html", "icon": "bi-signpost-split"},
             {"title": "List of results", "path": "results.html", "icon": "bi-list-ol"},
             {"title": "Dependency graph", "path": "graph.html", "icon": "bi-diagram-3"},
+        ] + [   # back matter (config "back-matter"), e.g. a glossary
+            {"title": p.title, "path": p.html_path, "icon": "bi-journal-text"} for p in pages if p.back
         ],
         "chapters": [],
     }

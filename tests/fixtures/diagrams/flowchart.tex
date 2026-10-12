@@ -1,0 +1,10 @@
+\begin{tikzpicture}[flowchart]
+  \node[fc start] (s) {start: the counterexample set};
+  \node[fc test, below=of s] (t) {an unticked formula\\on an open branch?};
+  \node[fc step, below=of t] (d) {apply its rule; close every\\branch holding $\varphi$ and $\neg\varphi$};
+  \node[fc start, right=of t] (e) {stop: all closed, valid;\\else an open branch refutes};
+  \draw[fc arrow] (s) -- (t);
+  \draw[fc arrow] (t) -- node[right, font=\scriptsize] {yes} (d);
+  \draw[fc arrow] (t) -- node[above, font=\scriptsize] {no} (e);
+  \draw[fc arrow] (d.west) -- ++(-0.5,0) |- (t.west);
+\end{tikzpicture}

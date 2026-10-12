@@ -12,6 +12,7 @@ style files it layers.
 | `latex-template.sty` | the book's macros, colours and helpers |
 | `chapter-style.sty` | chapters, `\part` banners, running heads, the Contents |
 | `theorem-envs.sty` | the environments `filters/theorems.lua` emits, framed and coloured from the config |
+| `book-diagrams.sty` | TikZ styles for arrow and Hasse diagrams, trees, the square of opposition and flowcharts (also loaded by `build/tikz.py`'s template for the website) |
 | `macros.tex` | the book's own macros, shared with the website (MathJax reads this file) |
 
 Load order is fixed by `preamble.tex`: `page-style`, then `latex-template`, then

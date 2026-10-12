@@ -127,6 +127,7 @@ $\begin{nd}
   \have {24} {A} \ds{1}
   \have {25} {A} \dm{1}
   \have {26} {A} \ctp{1}
+  \have {27} {A} \taut{1}
 \end{nd}$
 \end{center}
 ```
@@ -165,6 +166,29 @@ $\begin{nd}
 \\[2ex]
 $\begin{nd}
   \hypo {1} {x < y}
+\end{nd}$
+\end{center}
+```
+
+## purposes {#purposes}
+
+```{=latex}
+\begin{center}
+$\begin{nd}
+  \hypo {1} {P \to Q}
+  \open
+  \hypo {2} {P} \purpose{\ii}
+  \have {3} {Q} \ie{1,2}
+  \close
+  \have {4} {P \to Q} \ii{2-3}
+  \open
+  \hypo {5} {\neg Q}
+  \hypo {6} {P}
+  \have {7} {Q} \ie{1,6}
+  \have {8} {\bot} \ne{7,5}
+  \close
+  \have {9} {Q} \raa{5-8}
+  \have {10} {Q \vee \neg Q} \by{TAUT}{}
 \end{nd}$
 \end{center}
 ```

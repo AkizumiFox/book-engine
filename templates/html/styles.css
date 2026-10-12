@@ -648,6 +648,12 @@ img {
   padding-left: 1.6em;
 }
 
+/* "asm, for ->I": an assumption's purpose (\purpose, or inferred), quieter than a rule */
+.fitch-purpose {
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
 /* ==========================================================================
    Mathematics
    ========================================================================== */

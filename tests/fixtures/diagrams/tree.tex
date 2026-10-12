@@ -1,0 +1,7 @@
+\begin{tikzpicture}[tree, level 1/.style={level distance=23mm}]
+  \node {$P \to Q$ \ticked \\ $Q \to R$ \ticked \\ $\neg(P \to R)$ \ticked \\ $P$ \\ $\neg R$}
+    child {node {$\neg P$ \\ \closedbranch}}
+    child {node {$Q$}
+      child {node {$\neg Q$ \\ \closedbranch}}
+      child {node {$R$ \\ \closedbranch}}};
+\end{tikzpicture}

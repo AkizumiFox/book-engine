@@ -1,0 +1,89 @@
+% book-diagrams.sty -- TikZ templates for the small diagrams a mathematics book draws often.
+%
+% Loaded by latex/preamble*.tex (the PDF) and by build/tikz.py's standalone template (the
+% website, where each tikzpicture is compiled to an SVG). Everything here is a TikZ style or
+% a macro used INSIDE a tikzpicture: filters/tikz.lua finds a picture by its
+% \begin{tikzpicture}, so a picture must be written out, never hidden in a macro.
+% One worked example of each is in the Foundations series' authoring/DRAFTING.md
+% ("Diagrams"); the engine's tests/test_diagrams.py compiles the same ones.
+%
+% Colours: none. A picture is drawn in the text colour on no background, so the website's
+% dark mode (which inverts SVG figures) and print both read it.
+%
+%   structure, elt, rel        a finite structure as an arrow diagram: elements are dots
+%                              (label them with label=below:$a$), the relation is arrows;
+%                              a loop is \draw[rel] (a) to[loop above] (a);
+%   universe                   a rounded frame round the elements (fit=(a)(b)(c))
+%   hasse, hpt                 a Hasse diagram: points (hpt) or labelled nodes, plain edges,
+%                              greater elements higher
+%   tree, \ticked, \closedbranch, \openbranch
+%                              a truth tree or refutation tree, growing down: each node a
+%                              stack of formulas (separate them with \\), a processed
+%                              formula \ticked, a closed branch ends in \closedbranch (x), an
+%                              open one in \openbranch; edge labels with tlabel
+%   square, \oppositionsquare{A}{E}{I}{O}
+%                              the square of opposition: four corner statements with their
+%                              relations named (contraries, subcontraries, subalternation,
+%                              contradictories)
+%   flowchart, fc start, fc step, fc test, fc arrow
+%                              a simple flowchart: start/stop (rounded), step (box),
+%                              test (diamond); place with positioning (below=of a)
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{latex/book-diagrams}[2026/10/12 TikZ templates: structures, Hasse diagrams, trees, square, flowcharts]
+\RequirePackage{amssymb}
+\RequirePackage{tikz}
+\usetikzlibrary{arrows.meta,shapes.geometric,positioning,calc,fit}
+
+\tikzset{
+  % --- finite structures as arrow diagrams ---
+  structure/.style={>={Stealth[length=2.2mm]}, every loop/.style={min distance=5mm, looseness=7}},
+  elt/.style={circle, fill, inner sep=1.4pt, outer sep=1.5pt},
+  rel/.style={->, thin},
+  universe/.style={draw, rounded corners=6pt, inner sep=16pt, thin},
+  % --- Hasse diagrams ---
+  hasse/.style={every edge/.style={draw, thin}},
+  hpt/.style={circle, fill, inner sep=1.4pt, outer sep=1pt},
+  % --- truth and refutation trees ---
+  % every node hangs from its top (anchor=north) and an edge runs from the parent's foot to
+  % the child's head, so level distance is the parent's height plus the gap: raise it for a
+  % tall stack (level 1/.style={level distance=24mm})
+  tree/.style={
+    every node/.style={align=center, inner sep=2pt, font=\small, anchor=north},
+    level distance=12mm, sibling distance=26mm,
+    edge from parent/.style={draw, thin},
+    edge from parent path={(\tikzparentnode.south) -- (\tikzchildnode.north)},
+    level 2/.style={sibling distance=16mm, level distance=12mm},
+    level 3/.style={sibling distance=10mm, level distance=12mm}},
+  tlabel/.style={font=\scriptsize, inner sep=1pt},
+  % --- the square of opposition ---
+  square/.style={every node/.style={inner sep=3pt}, >={Stealth[length=2mm]}},
+  sqlabel/.style={font=\scriptsize\itshape, inner sep=2pt},
+  % --- flowcharts ---
+  flowchart/.style={node distance=7mm and 12mm, >={Stealth[length=2.2mm]},
+    every node/.style={font=\small}},
+  fc start/.style={draw, rectangle, rounded corners=7pt, minimum height=6mm, inner xsep=8pt, align=center},
+  fc step/.style={draw, rectangle, minimum height=6mm, inner xsep=6pt, align=center},
+  fc test/.style={draw, diamond, aspect=2.2, inner sep=1.5pt, align=center},
+  fc arrow/.style={->, thin},
+}
+
+% Tree marks: a processed formula, a closed branch, an open (finished) branch.
+\providecommand{\ticked}{\,\checkmark}
+\providecommand{\closedbranch}{\ensuremath{\times}}
+\providecommand{\openbranch}{\ensuremath{\circ}}
+
+% \oppositionsquare[side]{A}{E}{I}{O}: the four corners (A top left, E top right, I bottom
+% left, O bottom right) and the named relations, inside \begin{tikzpicture}[square].
+% The corners are nodes A, E, I, O, so more can be drawn after it.
+\newcommand{\oppositionsquare}[5][6.5]{%
+  \node (A) at (0,#1*0.5) {#2};
+  \node (E) at (#1,#1*0.5) {#3};
+  \node (I) at (0,0) {#4};
+  \node (O) at (#1,0) {#5};
+  \draw (A) -- node[sqlabel, above] {contraries} (E);
+  \draw (I) -- node[sqlabel, below] {subcontraries} (O);
+  \draw[->] (A) -- node[sqlabel, left] {subalternation} (I);
+  \draw[->] (E) -- node[sqlabel, right] {subalternation} (O);
+  \draw (A) -- node[sqlabel, sloped, above, pos=0.3] {contradictories} (O);
+  \draw (E) -- node[sqlabel, sloped, above, pos=0.3] {contradictories} (I);
+}

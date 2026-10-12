@@ -29,7 +29,7 @@ def page_metadata(book: Book, page: Page, output_format: str, extra: Optional[di
     metadata = {
         "chapter-num": page.chapter_number,
         "section-num": page.section,
-        "is-preface": page.is_preface,
+        "is-preface": page.unnumbered,   # the preface and back matter: nothing numbered
         "environment_settings": book.environment_settings,
         "section-number": page.number,
         "asset-prefix": page.asset_prefix if output_format == "html" else "./",
@@ -51,6 +51,11 @@ def page_metadata(book: Book, page: Page, output_format: str, extra: Optional[di
         metadata["crossref-labels-file"] = str(book.labels_file)
     if book.config.get("external-books") and external_file(book).exists():
         metadata["external-books-file"] = str(external_file(book))
+
+    if book.fitch_purposes_inferred:   # filters/fitch.lua writes each assumption's purpose
+        metadata["fitch-purposes"] = "infer"
+        if book.fitch_sty:
+            metadata["fitch-sty"] = str(book.fitch_sty)
 
     if output_format == "html":
         prefix = page.asset_prefix

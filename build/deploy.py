@@ -31,6 +31,7 @@ def write_redirects(book: Book, deploy_dir) -> int:
     (both relative to the site root). An old path ending in "/" redirects every page
     under it to the same file name under the new directory."""
     count = 0
+    redirects = []
     for old, new in book.config.get("redirects", {}).items():
         if old.endswith("/"):
             targets = {name: new.rstrip("/") + "/" + name
@@ -41,14 +42,17 @@ def write_redirects(book: Book, deploy_dir) -> int:
             items = [(old + name, target) for name, target in targets.items()]
         else:
             items = [(old, new)]
-        for old_path, target in items:
-            stub = deploy_dir / old_path
-            if stub.exists():
-                continue  # a real page lives here
-            depth = old_path.count("/")
-            stub.parent.mkdir(parents=True, exist_ok=True)
-            stub.write_text(REDIRECT_PAGE.format(target="../" * depth + target), encoding="utf-8")
-            count += 1
+        redirects.extend(items)
+    # short-urls: every page's source-named path sends readers to its short one
+    redirects.extend((p.src_path, p.html_path) for p in getattr(book, "pages", []) if getattr(p, "src_path", "") and p.src_path != p.html_path)
+    for old_path, target in redirects:
+        stub = deploy_dir / old_path
+        if stub.exists():
+            continue  # a real page lives here
+        depth = old_path.count("/")
+        stub.parent.mkdir(parents=True, exist_ok=True)
+        stub.write_text(REDIRECT_PAGE.format(target="../" * depth + target), encoding="utf-8")
+        count += 1
     if count:
         print_success(f"Redirect stubs: {count}")
     return count
@@ -113,7 +117,7 @@ def deploy(book: Book, run_build: bool = True, push: bool = False) -> bool:
         else:
             item.unlink()
 
-    chapter_slugs = {c.slug for c in book.chapters}
+    chapter_slugs = {getattr(c, "out_dir", c.slug) for c in book.chapters}
     for item in html_dir.iterdir():
         if item.is_dir() and is_stale_chapter_dir(item.name, chapter_slugs):
             continue  # output of a chapter that was renamed or removed (stale build files)

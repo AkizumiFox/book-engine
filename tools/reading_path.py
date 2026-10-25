@@ -307,12 +307,12 @@ def graph_from_labels(labels: dict, titles=None, hard_kinds=HARD_KINDS) -> Secti
     sections = {}
     where = {}
     for name, rec in labels.items():
-        sid = section_of(rec.get("file"))
+        sid = section_of(rec.get("src") or rec.get("file"))
         if sid is None:
             continue
         where[name] = sid
         if sid not in sections:
-            sections[sid] = from_file(rec.get("file"))
+            sections[sid] = from_file(rec.get("src") or rec.get("file"))
 
     citations = []
     for name, rec in sorted(labels.items()):
@@ -342,11 +342,11 @@ def load_titles(path=NAVIGATION) -> dict:
     nav = json.loads(path.read_text(encoding="utf-8"))
     titles = {}
     for chapter in nav.get("chapters", []):
-        sid = section_of(chapter.get("path"))
+        sid = section_of(chapter.get("src") or chapter.get("path"))
         if sid:
             titles[sid] = chapter.get("title", "")
         for section in chapter.get("sections", []):
-            sid = section_of(section.get("path"))
+            sid = section_of(section.get("src") or section.get("path"))
             if sid:
                 number = section.get("number", "")
                 titles[sid] = f"{number} {section.get('title', '')}".strip()

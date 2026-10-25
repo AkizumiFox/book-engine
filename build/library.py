@@ -46,7 +46,7 @@ from pathlib import Path
 
 from .book import Book, ENGINE_ROOT, load_overlay, merge_patch
 from .landing import groups as _groups, landing_page, not_found_page, render_landing_math  # noqa: F401
-from .deploy import is_stale_chapter_dir, write_redirects
+from .deploy import REDIRECT_PAGE, is_stale_chapter_dir, write_redirects
 from .utils import print_header, print_step, print_success, print_error, print_info, print_warning
 
 DEFAULT_BUILD_DIR = "_build/library"
@@ -267,7 +267,7 @@ def _clear(directory: Path):
 def copy_book_html(book: Book, destination: Path, with_pdf: bool):
     """The book's HTML output, as `deploy` would publish it (no stale chapters, no scratch
     `_` files), without the PDFs unless asked for, plus its redirect stubs."""
-    chapter_slugs = {c.slug for c in book.chapters}
+    chapter_slugs = {getattr(c, "out_dir", c.slug) for c in book.chapters}
     destination.mkdir(parents=True, exist_ok=True)
     for item in book.html_dir.iterdir():
         if item.is_dir() and is_stale_chapter_dir(item.name, chapter_slugs):
@@ -283,6 +283,34 @@ def copy_book_html(book: Book, destination: Path, with_pdf: bool):
     write_redirects(book, destination)
 
 
+def write_alias_redirects(book: Book, out: Path, entry: dict) -> int:
+    """Manifest "aliases": former sub-directories of a book (e.g. "fd1" for a book now at
+    "logic-and-proof"). Every page's old address under an alias, by its current path and
+    by its source-named path, gets a stub sending the reader to the page's address now."""
+    count = 0
+    for alias in entry.get("aliases") or []:
+        alias = alias.strip("/")
+        if not alias or alias == entry["subdir"]:
+            continue
+        pairs = [("index.html", "index.html")]
+        for page in book.pages:
+            pairs.append((page.html_path, page.html_path))
+            if page.src_path:
+                pairs.append((page.src_path, page.html_path))
+        for old, new in pairs:
+            stub = out / alias / old
+            if stub.exists():
+                continue
+            depth = (alias + "/" + old).count("/")
+            stub.parent.mkdir(parents=True, exist_ok=True)
+            stub.write_text(REDIRECT_PAGE.format(target="../" * depth + entry["subdir"] + "/" + new),
+                            encoding="utf-8")
+            count += 1
+    if count:
+        print_success(f"Alias redirects for {entry['subdir']}: {count}")
+    return count
+
+
 def assemble(manifest: dict, built: list, with_pdf: bool):
     out = manifest["out"]
     print_step(f"Assembling {out}")
@@ -290,6 +318,7 @@ def assemble(manifest: dict, built: list, with_pdf: bool):
     for entry, book in built:
         if book.html_dir.is_dir():
             copy_book_html(book, out / entry["subdir"], with_pdf)
+            write_alias_redirects(book, out, entry)
     for item in manifest["files"]:
         target = out / item["to"]
         target.parent.mkdir(parents=True, exist_ok=True)

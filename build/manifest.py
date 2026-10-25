@@ -114,7 +114,7 @@ def scan_labels(book: Book) -> dict:
             # forward-citation gate see only this book's labels.
             cited = uses.get(label_id, [])
             external = [ref for ref in cited if split_ref(book, ref)]
-            info = dict(info, file=page.html_path, shard=page.shard,
+            info = dict(info, file=page.html_path, src=page.source_key, shard=page.shard,
                         uses=[ref for ref in cited if ref not in external],
                         uses_kinds={ref: kinds for ref, kinds in uses_kinds.get(label_id, {}).items()
                                     if ref not in external},
@@ -312,8 +312,10 @@ def navigation_data(book: Book) -> dict:
             "part": chapter.part,
             "collapsed": len(book.chapters) > 6,
             "path": index.html_path if index else None,
+            "src": index.source_key if index else None,
             "sections": [
-                {"title": p.title, "number": p.number, "path": p.html_path, "filename": p.source.name}
+                {"title": p.title, "number": p.number, "path": p.html_path, "src": p.source_key,
+                 "filename": p.source.name}
                 for p in chapter_pages if p.section > 0
             ],
         })

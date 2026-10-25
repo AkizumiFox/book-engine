@@ -171,7 +171,7 @@ class BookGraph:
         self.pages: dict[str, Page] = {}
         titles = {}
         for page in book.pages:
-            sid = self.rp.section_of(page.html_path)
+            sid = self.rp.section_of(page.source_key)
             if sid:
                 self.pages[sid] = page
                 titles[sid] = f"{page.number} {page.title}".strip()

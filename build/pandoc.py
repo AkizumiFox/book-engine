@@ -61,7 +61,7 @@ def page_metadata(book: Book, page: Page, output_format: str, extra: Optional[di
         prefix = page.asset_prefix
         if page.chapter:
             metadata["breadcrumb-chapter-title"] = page.chapter.title
-            metadata["breadcrumb-chapter-url"] = f"{prefix}{page.chapter.slug}/index.html"
+            metadata["breadcrumb-chapter-url"] = f"{prefix}{getattr(page.chapter, 'out_dir', page.chapter.slug)}/index.html"
         else:
             metadata["breadcrumb-chapter-title"] = page.title
             metadata["breadcrumb-chapter-url"] = f"{prefix}index.html"

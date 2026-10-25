@@ -68,7 +68,7 @@ def copy_chapter_assets(book: Book):
     for chapter in book.chapters:
         if not chapter.directory.is_dir():
             continue
-        destination = book.html_dir / chapter.slug
+        destination = book.html_dir / getattr(chapter, "out_dir", chapter.slug)
         destination.mkdir(parents=True, exist_ok=True)
         for pattern in ASSET_EXTENSIONS:
             for source in chapter.directory.glob(pattern):
@@ -146,11 +146,11 @@ def _prune_stale_pages(book: Book) -> int:
     """
     removed = 0
     for chapter in book.chapters:
-        directory = book.html_dir / chapter.slug
+        directory = book.html_dir / getattr(chapter, "out_dir", chapter.slug)
         if not directory.is_dir():
             continue
         live = {Path(page.html_path).name for page in book.pages
-                if Path(page.html_path).parent.name == chapter.slug}
+                if Path(page.html_path).parent.name == getattr(chapter, "out_dir", chapter.slug)}
         for built in directory.glob("*.html"):
             if built.name not in live:
                 built.unlink()

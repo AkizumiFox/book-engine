@@ -108,7 +108,7 @@ UNKNOWN_KIND = "?"
 def place(labels):
     """label -> (chapter, letter, section), by file path and nothing else."""
     return {name: key for name, rec in labels.items()
-            if (key := from_file(rec.get("file"))) is not None}
+            if (key := from_file(rec.get("src") or rec.get("file"))) is not None}
 
 
 def forward_citations(labels, order):

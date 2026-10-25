@@ -35,6 +35,11 @@ class Chapter:
     directory: Path
     title: str
     part: str = ""     # set on the first chapter of a part: the part's heading
+    out: str = ""      # output directory: the slug, or "ch1" with config "short-urls"
+
+    @property
+    def out_dir(self) -> str:
+        return self.out or self.slug
 
 
 @dataclass
@@ -46,6 +51,12 @@ class Page:
     html_path: str            # relative to the HTML output root, e.g. "ch01-vector-spaces/03-span.html"
     neighbours: dict = field(default_factory=dict)  # "prev"/"next" -> Page
     back: bool = False        # a back-matter page (config "back-matter"), e.g. a glossary
+    src_path: str = ""        # the source-named path ("ch01-vector-spaces/03-span.html"): the
+                              # reading-order key of the tools, and the old URL under "short-urls"
+
+    @property
+    def source_key(self) -> str:
+        return self.src_path or self.html_path
 
     @property
     def is_preface(self) -> bool:
@@ -356,8 +367,16 @@ class Book:
                 title = extract_title(index) if index.exists() else re.sub(
                     r"^ch\d+-", "", directory.name).replace("-", " ").title()
             chapters.append(Chapter(number=number, slug=directory.name, directory=directory, title=title,
-                                    part=entry.get("part", "")))
+                                    part=entry.get("part", ""),
+                                    out=f"ch{number}" if self.short_urls else ""))
         return chapters
+
+    @property
+    def short_urls(self) -> bool:
+        """Config "short-urls": chapter pages at ch<N>/ and section pages named by their
+        title slug without the file number ("ch1/using-an-implication.html"). The old
+        source-named paths get redirect stubs (deploy.write_redirects)."""
+        return bool(self.config.get("short-urls"))
 
     @cached_property
     def pages(self) -> list[Page]:
@@ -378,10 +397,19 @@ class Book:
             sections = [s for s in sources if s.name != "index.md"]
             for source in index:
                 pages.append(Page(source=source, chapter=chapter, section=0, title=extract_title(source),
-                                  html_path=f"{chapter.slug}/index.html"))
+                                  html_path=f"{chapter.out_dir}/index.html",
+                                  src_path=f"{chapter.slug}/index.html"))
+            names = set()
             for number, source in enumerate(sections, start=1):
+                name = source.stem
+                if self.short_urls:
+                    name = re.sub(r"^\d+[a-z]*-", "", name) or name
+                    if name in names:
+                        raise ValueError(f"short-urls: two sections of {chapter.slug} are both {name}.html")
+                    names.add(name)
                 pages.append(Page(source=source, chapter=chapter, section=number, title=extract_title(source),
-                                  html_path=f"{chapter.slug}/{source.stem}.html"))
+                                  html_path=f"{chapter.out_dir}/{name}.html",
+                                  src_path=f"{chapter.slug}/{source.stem}.html"))
         for entry in self.config.get("back-matter", []) or []:
             source = self.path(entry)
             if source.is_file():

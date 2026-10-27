@@ -642,6 +642,38 @@
     }
 
     /**
+     * A formula's glyphs are CSS-generated content, which browsers never paint as selected,
+     * so a selection seems to skip over it. Shade every formula the selection touches instead.
+     */
+    function setupMathSelection() {
+        let marked = [];
+        let pending = false;
+        const update = () => {
+            pending = false;
+            const selection = window.getSelection();
+            let touched = [];
+            if (selection && !selection.isCollapsed && selection.rangeCount) {
+                let scope = selection.getRangeAt(0).commonAncestorContainer;
+                if (scope.nodeType !== Node.ELEMENT_NODE) scope = scope.parentElement;
+                const inside = scope.closest('mjx-container');
+                touched = inside ? [inside]
+                    : [...scope.querySelectorAll('mjx-container')]
+                        .filter(node => selection.containsNode(node, true));
+            }
+            marked.forEach(node => {
+                if (!touched.includes(node)) node.classList.remove('math-selected');
+            });
+            touched.forEach(node => node.classList.add('math-selected'));
+            marked = touched;
+        };
+        document.addEventListener('selectionchange', () => {
+            if (pending) return;
+            pending = true;
+            requestAnimationFrame(update);
+        });
+    }
+
+    /**
      * Copying a passage that contains formulas puts their LaTeX source on the clipboard
      * (the rendered glyphs carry no text of their own). The build stores each formula's
      * source in data-tex; see build/render_math.cjs.
@@ -1289,6 +1321,7 @@
 
         setupWideInlineMath();
         setupMathCopy();
+        setupMathSelection();
 
         // Fold solutions (and let readers fold proofs), before anchors are resolved
         setupFolding();

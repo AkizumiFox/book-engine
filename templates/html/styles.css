@@ -340,6 +340,17 @@ body {
   background: var(--accent-soft);
 }
 
+/* The glyphs themselves never show as selected, so main.js shades a selected formula.
+   An inline one is padded out to the height of the line, as selected text is. */
+.content mjx-container.math-selected:not([display="true"]) {
+  background: var(--accent-soft);
+  padding-block: calc((var(--line-height) - 1) * 0.5em);
+}
+
+.content mjx-container.math-selected > mjx-math {
+  background: var(--accent-soft);
+}
+
 /* ==========================================================================
    Headings
    ========================================================================== */

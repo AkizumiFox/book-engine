@@ -126,8 +126,46 @@ Engine checkers available as `engine:<name>`:
 - Second-reading fold: `::: {.second-reading title="Why the order is loss-free"}` … `:::`
   around material a first reading may skip (a meta-proof whose statement stays on the
   main line, edge cases, a long justification). See below.
+- Uses line: `::: {.uses}` … `:::` as the last paragraph of a proof, idea or solution,
+  listing the results it used; printed in small type after an italic "Uses:". See below.
+- Chapter review page: `review.md` in a chapter's directory. See below.
 - Macros: add them to `latex/macros.tex` (`\def`, `\newcommand`, `\providecommand`,
   `\DeclareMathOperator`). The website's MathJax macros are generated from this file.
+
+### Uses line
+
+```
+::: {.proof}
+Let ... This proves the theorem.
+
+::: {.uses}
+@def-function (each input has one output); @prp-function-equality.
+:::
+:::
+```
+
+- The results a proof (idea, solution) used, collected at its end so that its sentences
+  need not each carry a reference. One paragraph, usually; the filter
+  (`filters/components.lua`) puts an italic "Uses:" in front (`label="..."` on the div
+  changes the word).
+- Web: `<div class="uses">`, small type in the theme's muted colour. PDF: the
+  `bookuses` environment of `latex/theorem-envs.sty` (footnote size, grey, no indent, no
+  box, so it sits inside the proof's frame).
+- The references inside are ordinary citations of the enclosing block: the label scan,
+  the dependency graph, the reading paths and the `forward-deps` and `optional` checks
+  read a Uses line inside a proof as part of the proof.
+
+### Chapter review page
+
+A file named `review.md` in a chapter's directory (`src/ch03-integers/review.md`) is the
+chapter's review page: what the chapter proved, its terms, its proof methods, the results
+it used. It needs no config. The engine places it after the chapter's last section: in
+the reading order (previous/next links), in the sidebar (last under the chapter, without
+a number), in the search index, and in the book PDF (an unnumbered title, like the
+chapter's index page). Its web page is `<chapter>/review.html` (also under `short-urls`).
+It takes no section number, so adding or removing it never renumbers a section or a
+result. Its title is its `# ` heading, e.g. `# Chapter Review`. A review page cites; it
+should not state numbered results (they would be numbered as in an index page).
 
 ### Second-reading fold
 

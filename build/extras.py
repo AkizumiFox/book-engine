@@ -400,7 +400,7 @@ def _path_body(book: Book, graph: BookGraph, path: ReadingPath) -> str:
 
 
 def _chapter_url(book: Book, chapter) -> str:
-    page = next((p for p in book.pages if p.chapter is chapter and p.section == 0), None)
+    page = next((p for p in book.pages if p.chapter is chapter and p.section == 0 and not p.review), None)
     if page is None:
         page = next((p for p in book.pages if p.chapter is chapter), None)
     return page.html_path if page else ""

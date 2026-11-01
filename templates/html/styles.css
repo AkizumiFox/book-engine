@@ -1045,6 +1045,24 @@ div.equation mjx-container[display="true"] {
   }
 }
 
+/* --- Uses line (components.lua: ::: {.uses}) ---
+   The last paragraph of a proof, idea or solution: the results it used, in small muted
+   type after an italic "Uses:", so the sentences above need not carry the citations. */
+div.uses {
+  margin: 0.7em 0 0.2em;
+  font-size: 0.82em;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+div.uses p {
+  margin: 0;
+}
+
+div.uses p + p {
+  margin-top: 0.3em;
+}
+
 /* --- Second-reading fold (components.lua: ::: {.second-reading title="..."}) ---
    Material a first reading may skip -- a meta-proof, edge cases, a long justification.
    A native <details>, closed by default: the summary is a quiet bar with a marker,

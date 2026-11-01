@@ -179,7 +179,7 @@ def build_book(book: Book) -> bool:
             attrs += ' data-preface="true"'
         elif page.back:   # back matter: unnumbered like the preface, under its own banner
             attrs += f' data-preface="true" data-banner="{page.title}"'
-        if page.section == 0 and page.chapter and page.chapter.part:
+        if page.section == 0 and page.chapter and page.chapter.part and not page.review:
             attrs += f' data-part-title="{page.chapter.part}"'
         if page.section >= 1:
             attrs += f' data-chapter-title="{page.chapter.title}"'

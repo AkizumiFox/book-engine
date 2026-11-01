@@ -305,7 +305,7 @@ def navigation_data(book: Book) -> dict:
     }
     for chapter in book.chapters:
         chapter_pages = [p for p in pages if p.chapter is chapter]
-        index = next((p for p in chapter_pages if p.section == 0), None)
+        index = next((p for p in chapter_pages if p.section == 0 and not p.review), None)
         navigation["chapters"].append({
             "title": chapter.title,
             "number": chapter.number,
@@ -316,7 +316,7 @@ def navigation_data(book: Book) -> dict:
             "sections": [
                 {"title": p.title, "number": p.number, "path": p.html_path, "src": p.source_key,
                  "filename": p.source.name}
-                for p in chapter_pages if p.section > 0
+                for p in chapter_pages if p.section > 0 or p.review   # the review page last
             ],
         })
     book._navigation_data = navigation

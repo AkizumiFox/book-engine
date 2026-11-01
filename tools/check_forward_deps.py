@@ -65,13 +65,16 @@ from pathlib import Path
 INDEX = Path("_build/crossref_labels.json")
 
 
-CHAPTER = re.compile(r"^ch(\d+)([a-z]*)[^/]*/(\d+|index)")
+CHAPTER = re.compile(r"^ch(\d+)([a-z]*)[^/]*/(\d+|index|review)")
+# A chapter's review page (`review.md`) follows every section of its chapter
+REVIEW_SECTION = 10 ** 6
 
 
 def from_file(path):
     """Exercises and examples carry no number, but their path names the section.
 
-    'ch15-norms/04-spectral-radius.html' -> (15, '', 4); an index page -> (n, '', 0).
+    'ch15-norms/04-spectral-radius.html' -> (15, '', 4); an index page -> (n, '', 0); the
+    chapter's review page -> (n, '', REVIEW_SECTION), after every section.
 
     A chapter directory may carry a letter after its number: `ch23a-notation` is
     an appendix to Chapter 23 that must not be renamed, because `latex` and
@@ -85,7 +88,9 @@ def from_file(path):
     m = CHAPTER.match(path or "")
     if not m:
         return None
-    section = 0 if m.group(3) == "index" else int(m.group(3))
+    section = {"index": 0, "review": REVIEW_SECTION}.get(m.group(3))
+    if section is None:
+        section = int(m.group(3))
     return int(m.group(1)), m.group(2), section
 
 

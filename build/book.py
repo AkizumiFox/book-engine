@@ -26,6 +26,8 @@ from .macros import plain_text
 
 ENGINE_ROOT = Path(__file__).parent.parent.resolve()
 CONFIG_CANDIDATES = ("book.json", "config/config.json")
+# A chapter's review page (summary, terms, methods): `<chapter dir>/review.md`, see Book.pages
+REVIEW_FILE = "review.md"
 
 
 @dataclass
@@ -51,6 +53,7 @@ class Page:
     html_path: str            # relative to the HTML output root, e.g. "ch01-vector-spaces/03-span.html"
     neighbours: dict = field(default_factory=dict)  # "prev"/"next" -> Page
     back: bool = False        # a back-matter page (config "back-matter"), e.g. a glossary
+    review: bool = False      # a chapter's review page (`review.md`): after its last section, unnumbered
     src_path: str = ""        # the source-named path ("ch01-vector-spaces/03-span.html"): the
                               # reading-order key of the tools, and the old URL under "short-urls"
 
@@ -73,7 +76,7 @@ class Page:
 
     @property
     def number(self) -> str:
-        """Section number shown in titles and navigation ("1.3"), empty for index pages."""
+        """Section number shown in titles and navigation ("1.3"), empty for index and review pages."""
         if self.section == 0:
             return ""
         return f"{self.chapter_number}.{self.section}"
@@ -380,10 +383,15 @@ class Book:
 
     @cached_property
     def pages(self) -> list[Page]:
-        """All pages in reading order: preface, then each chapter's index and sections, then
-        the back matter (config "back-matter": a list of Markdown files, e.g.
+        """All pages in reading order: preface, then each chapter's index, sections and review
+        page, then the back matter (config "back-matter": a list of Markdown files, e.g.
         ["src/glossary.md"], each a page <stem>.html at the site root, unnumbered like the
-        preface)."""
+        preface).
+
+        A chapter's review page is the file `review.md` in its directory (REVIEW_FILE): it
+        follows the chapter's last section in the reading order, the sidebar and the book
+        PDF, and is unnumbered like the chapter's index page (section 0, `review` set), so
+        it takes no section number and does not shift the numbers of the sections."""
         pages = []
         preface = self.path(self.config.get("preface", str(self.src_dir.relative_to(self.root) / "index.md")))
         if preface.exists():
@@ -394,7 +402,8 @@ class Book:
                 continue
             sources = sorted(chapter.directory.glob("*.md"))
             index = [s for s in sources if s.name == "index.md"]
-            sections = [s for s in sources if s.name != "index.md"]
+            review = [s for s in sources if s.name == REVIEW_FILE]
+            sections = [s for s in sources if s.name not in ("index.md", REVIEW_FILE)]
             for source in index:
                 pages.append(Page(source=source, chapter=chapter, section=0, title=extract_title(source),
                                   html_path=f"{chapter.out_dir}/index.html",
@@ -410,6 +419,10 @@ class Book:
                 pages.append(Page(source=source, chapter=chapter, section=number, title=extract_title(source),
                                   html_path=f"{chapter.out_dir}/{name}.html",
                                   src_path=f"{chapter.slug}/{source.stem}.html"))
+            for source in review:
+                pages.append(Page(source=source, chapter=chapter, section=0, title=extract_title(source),
+                                  html_path=f"{chapter.out_dir}/{source.stem}.html",
+                                  src_path=f"{chapter.slug}/{source.stem}.html", review=True))
         for entry in self.config.get("back-matter", []) or []:
             source = self.path(entry)
             if source.is_file():

@@ -40,6 +40,17 @@ Second-reading fold (not interactive, but it has a web form and a print form too
     label scan (search text, dependencies) sees them as main-line blocks. A fold inside a
     fold, and a heading inside a fold, are reported as errors.
 
+Uses line (not interactive either: a small-type note at the end of a proof)
+    ::: {.uses}
+    @def-function (each input has one output); @prp-function-equality.
+    :::
+    Where a proof, idea or solution got the facts it cites in the Uses line rather than in
+    its sentences. HTML: <div class="uses"> in small type, the content after an italic
+    "Uses:" (the attribute label="..." changes the word). LaTeX: the same inside
+    \begin{bookuses} ... \end{bookuses} (theorem-envs.sty: footnote size, grey). The label
+    scan sees the citations as the enclosing block's: a Uses line inside a proof is part of
+    the proof for the dependency graph and the forward-reference gate.
+
 Problems (bad expressions, missing print content, unknown widget file) are written to
 stderr; in scan mode they are printed as COMPONENT_ERROR lines for ./build.py check.
 ]]
@@ -475,6 +486,39 @@ local function second_reading(div)
 end
 
 -- =============================================================================
+-- Uses line
+-- =============================================================================
+
+local USES = "Uses:"
+
+local function uses(div)
+    -- the label scan (JSON): leave the div and its citations where they are, inside the proof
+    if settings.scan_mode then return nil end
+    local word = div.attributes["label"]
+    if not word or not word:match("%S") then word = USES end
+    local label = {pandoc.Emph({pandoc.Str(word)}), pandoc.Space()}
+    local blocks = pandoc.List(div.content)
+    local first = blocks[1]
+    if first and (first.t == "Para" or first.t == "Plain") then
+        local content = pandoc.List(label)
+        content:extend(first.content)
+        blocks[1] = pandoc.Para(content)
+    else
+        blocks:insert(1, pandoc.Para(label))
+    end
+    if is_html then
+        return pandoc.Div(blocks, pandoc.Attr(div.identifier, {"uses"}))
+    end
+    if is_latex then
+        local out = {pandoc.RawBlock("latex", "\\begin{bookuses}")}
+        for _, block in ipairs(blocks) do table.insert(out, block) end
+        table.insert(out, pandoc.RawBlock("latex", "\\end{bookuses}"))
+        return out
+    end
+    return blocks
+end
+
+-- =============================================================================
 -- Filter
 -- =============================================================================
 
@@ -494,6 +538,7 @@ local function Div(div)
     if div.classes:includes("plot") then return plot(div) end
     if div.classes:includes("widget") then return widget(div) end
     if div.classes:includes("second-reading") then return second_reading(div) end
+    if div.classes:includes("uses") then return uses(div) end
     return nil
 end
 

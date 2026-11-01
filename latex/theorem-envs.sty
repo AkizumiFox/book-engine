@@ -188,6 +188,21 @@
 }
 
 % ======================================================================================
+% THE USES LINE
+% ======================================================================================
+% `::: {.uses}` at the end of a proof, idea or solution lists the results it used
+% without citing them in its sentences. filters/components.lua writes the italic
+% "Uses:" into the content and wraps it in this environment: small grey type, a
+% little space above, no indent. No box, so it sits inside a proof's frame.
+\providecolor{bookuses}{gray}{0.35}
+\newenvironment{bookuses}{%
+    \par\addvspace{0.4\baselineskip}%
+    \begingroup\footnotesize\color{bookuses}\setlength{\parindent}{0pt}%
+}{%
+    \par\endgroup
+}
+
+% ======================================================================================
 % SMALL ENVIRONMENTS (proof, remark, solution, ...)
 % ======================================================================================
 % The same frame without a title bar: filters/theorems.lua writes the head

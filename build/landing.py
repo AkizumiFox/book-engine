@@ -4,8 +4,8 @@ Build System Landing Module
 The library's front page (index.html) and its root 404.html, generated from the library
 manifest (build/library.py) and from what the build learned about each book.
 
-The landing page has the books' own look: STIX Two Text (the fonts a book already serves,
-so nothing is fetched from elsewhere), the same colour tokens and light/dark themes (the
+The landing page has the books' own look: STIX Two Text for the text and Inter for the
+small interface labels (the fonts a book already serves, so nothing is fetched from elsewhere), the same colour tokens and light/dark themes (the
 same saved "book-theme" choice), the same fluid text size and line length.
 
 Manifest keys it reads (all optional except the books):
@@ -58,13 +58,16 @@ TOKENS_LIGHT = """
   --ink: #26282d;
   --ink-strong: #121418;
   --muted: #5f6570;
-  --rule: #e1e4e8;
-  --rule-strong: #c9ced5;
-  --subtle: #f6f7f9;
-  --accent: #1f5bb8;
-  --accent-soft: #e8effa;
-  --hover-wash: #eaf1fb;
-  --hover-border: #9db8e3;
+  --faint: #8a909a;
+  --rule: #e4e6ea;
+  --rule-strong: #cdd1d8;
+  --subtle: #f7f8fa;
+  --accent: #2b5ba3;
+  --accent-soft: #ebf0f8;
+  --hover-wash: #eff3f9;
+  --hover-border: #a9bfdf;
+  --hover-shadow: rgba(31, 60, 110, 0.14);
+  --note: #c08a1e;
 """
 
 TOKENS_DARK = """
@@ -73,18 +76,22 @@ TOKENS_DARK = """
   --ink: #d8dbe0;
   --ink-strong: #f1f2f4;
   --muted: #a1a7b1;
-  --rule: #2b2f36;
+  --faint: #7d838d;
+  --rule: #2a2e35;
   --rule-strong: #3a3f47;
-  --subtle: #1d2025;
-  --accent: #83adf0;
-  --accent-soft: #1f2a3b;
-  --hover-wash: #202b3c;
+  --subtle: #1c1f24;
+  --accent: #8fb2ea;
+  --accent-soft: #1e2838;
+  --hover-wash: #1f2938;
   --hover-border: #4d6a94;
+  --hover-shadow: rgba(0, 0, 0, 0.55);
+  --note: #d9a648;
 """
 
 PAGE_STYLE = """
 :root {%(light)s
   --font-body: 'STIX Two Text', 'STIX Two', 'Times New Roman', serif;
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   /* the books' fluid text: 20px up to a 1440px window, 26px at 2560px; 18px on phones */
   --text-size: clamp(20px, calc(12.3px + 0.536vw), 26px);
   --measure: calc(var(--text-size) * 31.2);     /* the books' column: about 72 characters */
@@ -104,8 +111,9 @@ body {
   font-kerning: normal; font-variant-numeric: lining-nums proportional-nums;
   text-rendering: optimizeLegibility;
 }
-a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
-a:hover { color: var(--ink-strong); }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 0.2em;
+    text-decoration-color: color-mix(in srgb, var(--accent) 30%%, transparent); }
+a:hover { color: var(--ink-strong); text-decoration-color: currentColor; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
 .skip-link { position: absolute; left: -9999px; top: 0; }
 .skip-link:focus { left: var(--gutter); top: 8px; background: var(--paper); padding: 4px 8px; z-index: 2; }
@@ -116,12 +124,19 @@ a:hover { color: var(--ink-strong); }
 .page { max-width: calc(var(--page-width) + 2 * var(--gutter)); margin: 0 auto; padding: 0 var(--gutter); }
 
 /* Header */
-.masthead { position: relative; padding: clamp(2.2rem, 7vw, 4.5rem) 0 2.2rem; border-bottom: 1px solid var(--rule); }
-.masthead h1 { margin: 0 0 0.35em; font-size: 2.3em; line-height: 1.1; font-weight: 600;
-               letter-spacing: -0.01em; color: var(--ink-strong); padding-right: 2.5rem; }
-.tagline { margin: 0 0 0.6em; max-width: var(--measure); font-size: 1.22em; line-height: 1.45; color: var(--ink-strong); }
-.usage { margin: 0 0 0.9em; max-width: var(--measure); color: var(--ink); }
-.status { margin: 0; max-width: var(--measure); font-size: 0.85em; color: var(--muted); font-style: italic; }
+.masthead { position: relative; padding: clamp(2.5rem, 8vw, 5.5rem) 0 clamp(2rem, 5vw, 3rem);
+            border-bottom: 1px solid var(--rule); }
+.masthead h1 { margin: 0 0 0.4em; font-size: 2.7em; line-height: 1.05; font-weight: 600;
+               letter-spacing: -0.015em; color: var(--ink-strong); padding-right: 2.5rem; }
+.tagline { margin: 0 0 0.7em; max-width: calc(var(--measure) * 0.92); font-size: 1.32em; line-height: 1.4;
+           color: var(--ink-strong); text-wrap: pretty; }
+.usage { margin: 0 0 1.3em; max-width: var(--measure); color: var(--muted); text-wrap: pretty; }
+/* The work-in-progress note: a quiet tag, not a line of text */
+.status { display: inline-flex; align-items: baseline; gap: 0.6em; margin: 0; max-width: var(--measure);
+          padding: 0.45em 0.85em; border: 1px solid var(--rule); border-radius: 8px; background: var(--subtle);
+          font-family: var(--font-ui); font-size: 0.72em; line-height: 1.5; color: var(--muted); }
+.status::before { content: ""; flex: none; width: 0.5em; height: 0.5em; border-radius: 50%%;
+                  background: var(--note); transform: translateY(-0.05em); }
 .theme-toggle { position: absolute; top: clamp(1.4rem, 5vw, 2.2rem); right: 0; display: inline-flex;
                 align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; padding: 0;
                 border: 1px solid var(--rule); border-radius: 8px; background: transparent;
@@ -133,65 +148,72 @@ a:hover { color: var(--ink-strong); }
 :root[data-theme="dark"] .theme-toggle .moon { display: inline; }
 
 /* Sections */
-.band { padding: 2.2rem 0 2.4rem; border-bottom: 1px solid var(--rule); }
-.band-head { max-width: var(--measure); margin-bottom: 1.1rem; }
-.band h2 { margin: 0 0 0.2em; font-size: 1.4em; line-height: 1.25; font-weight: 600; color: var(--ink-strong); }
-.band-head p { margin: 0; color: var(--muted); }
+.band { padding: 2.6rem 0 2.8rem; border-bottom: 1px solid var(--rule); }
+.band-head { max-width: var(--measure); margin-bottom: 1.3rem; }
+.band h2 { margin: 0 0 0.25em; font-size: 1.45em; line-height: 1.25; font-weight: 600; color: var(--ink-strong); }
+.band-head p { margin: 0; color: var(--muted); font-size: 0.95em; text-wrap: pretty; }
 
 /* A run of one-card sections: side by side, their heads and cards on shared rows */
-.band-row { display: grid; gap: 0 1rem; border-bottom: 1px solid var(--rule);
+.band-row { display: grid; gap: 0 1.25rem; border-bottom: 1px solid var(--rule);
             grid-template-columns: repeat(auto-fit, minmax(min(100%%, calc(var(--text-size) * 15.5)), 1fr)); }
 .band-row > .band { display: grid; grid-row: span 2; grid-template-rows: subgrid; row-gap: 0; border-bottom: 0; }
-.band-row .band-head { margin-bottom: 1.1rem; }
+.band-row .band-head { margin-bottom: 1.3rem; }
 .band-row .cards { grid-template-columns: 1fr; }
 @media (max-width: 640px) { .band-row > .band + .band { border-top: 1px solid var(--rule); } }
 
 /* Book cards */
-.cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem;
+.cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.25rem;
          grid-template-columns: repeat(auto-fill, minmax(min(100%%, calc(var(--text-size) * 15.5)), 1fr)); }
-.card { height: 100%%; display: flex; flex-direction: column; gap: 0.55em; padding: 1.05em 1.2em 1em;
-        border: 1px solid var(--rule); border-radius: 8px; background: var(--paper);
-        font-size: 0.86em; line-height: 1.55; transition: border-color 0.18s ease; }
-.card:hover { border-color: var(--hover-border); }
-.card-code { margin: 0; font-size: 0.82em; font-weight: 600; letter-spacing: 0.09em; color: var(--accent);
-             font-variant-numeric: tabular-nums; }
-.card h3 { margin: -0.2em 0 0; font-size: 1.32em; line-height: 1.25; font-weight: 600; color: var(--ink-strong); }
+.card { height: 100%%; display: flex; flex-direction: column; gap: 0.6em;
+        padding: 1.25em 1.35em 1.1em; border: 1px solid var(--rule); border-radius: 12px; background: var(--paper);
+        font-size: 0.86em; line-height: 1.55;
+        transition: border-color 0.18s ease, box-shadow 0.25s ease, transform 0.25s ease; }
+.card:hover { border-color: var(--hover-border); box-shadow: 0 14px 32px -20px var(--hover-shadow);
+              transform: translateY(-1px); }
+.card-code { align-self: flex-start; margin: 0; padding: 0.22em 0.6em; border-radius: 6px;
+             background: var(--accent-soft); color: var(--accent);
+             font-family: var(--font-ui); font-size: 0.72em; font-weight: 600; letter-spacing: 0.05em;
+             line-height: 1.4; font-variant-numeric: tabular-nums; }
+.card h3 { margin: 0.05em 0 0; font-size: 1.32em; line-height: 1.25; font-weight: 600; color: var(--ink-strong);
+           text-wrap: balance; }
 .card h3 a { color: inherit; text-decoration: none; }
-.card h3 a:hover { text-decoration: underline; text-decoration-color: var(--hover-border); }
-.card-blurb { margin: 0; }
-.progress { margin: 0.15em 0 0; display: flex; flex-direction: column; align-items: flex-start; gap: 0.3em;
-            font-size: 0.9em; color: var(--muted); }
+.card h3 a:hover { color: var(--accent); }
+.card-blurb { margin: 0; color: var(--ink); }
+.progress { margin: 0.3em 0 0; display: flex; flex-direction: column; align-items: flex-start; gap: 0.45em;
+            font-family: var(--font-ui); font-size: 0.74em; color: var(--muted); }
 .segments { display: inline-flex; gap: 3px; }
-.segments i { display: block; width: 1.1em; height: 0.42em; border-radius: 2px;
-              border: 1px solid var(--rule-strong); }
-.segments i.done { background: var(--accent); border-color: var(--accent); }
-.card-links { margin: auto 0 0; padding-top: 0.55em; display: flex; flex-wrap: wrap; gap: 0.3em 1.2em;
-              border-top: 1px solid var(--rule); }
-.card-links a { font-weight: 600; text-decoration: none; }
+.segments i { display: block; width: 1.5em; height: 0.36em; border-radius: 999px; background: var(--rule); }
+.segments i.done { background: var(--accent); }
+.card-links { margin: auto 0 0; padding-top: 0.8em; display: flex; flex-wrap: wrap; gap: 0.3em 1.3em;
+              border-top: 1px solid var(--rule); font-family: var(--font-ui); font-size: 0.8em; }
+.card-links a { font-weight: 500; text-decoration: none; }
+.card-links a:first-child::after { content: " \\2192"; }
 .card-links a:hover { text-decoration: underline; }
 .nowrap { white-space: nowrap; }
-.card-note { margin: 0; font-size: 0.9em; color: var(--muted); }
+.card-note { margin: 0; font-size: 0.85em; color: var(--muted); }
 
 /* Reading order */
-.order { margin: 0; padding: 1.2rem 1.2rem 1rem; background: var(--subtle); border: 1px solid var(--rule); border-radius: 8px; }
-.order svg { display: block; width: 100%%; height: auto; margin: 0 auto 0.8rem; }
+.order { margin: 0; padding: 1.6rem 1.4rem 1.2rem; background: var(--paper); border: 1px solid var(--rule); border-radius: 12px; }
+.order svg { display: block; width: 100%%; height: auto; margin: 0 auto 1rem; }
 .order .narrow { display: none; }
 @media (max-width: 640px) { .order .wide { display: none; } .order .narrow, .order .wide.narrow-too { display: block; } }
-.order figcaption { max-width: var(--measure); color: var(--ink); font-size: 0.9em; }
+.order figcaption { max-width: var(--measure); margin: 0 auto; padding-top: 0.9rem; border-top: 1px solid var(--rule);
+                    color: var(--muted); font-size: 0.85em; line-height: 1.6; text-wrap: pretty; }
 .order figcaption p { margin: 0 0 0.4em; }
-.node rect { fill: var(--paper); stroke: var(--rule-strong); stroke-width: 1.2; }
-.node.book rect { stroke: var(--accent); }
+.node rect { fill: var(--paper); stroke: var(--rule-strong); stroke-width: 1; }
+.node.book rect { fill: var(--accent-soft); stroke: color-mix(in srgb, var(--accent) 45%%, var(--paper)); }
 .node.planned rect { stroke-dasharray: 5 4; fill: none; }
-.node .code { font-size: 17px; font-weight: 600; fill: var(--ink-strong); }
+.node text { font-family: var(--font-ui); }
+.node .code { font-size: 15px; font-weight: 600; fill: var(--ink-strong); letter-spacing: 0.02em; }
 .node.book .code { fill: var(--accent); }
-.node .name { font-size: 12.5px; fill: var(--muted); }
-.edge { stroke: var(--muted); stroke-width: 1.3; fill: none; }
+.node .name { font-size: 11.5px; fill: var(--muted); }
+.edge { stroke: var(--faint); stroke-width: 1.2; fill: none; }
 .edge.optional { stroke-dasharray: 4 4; }
-.arrowhead { fill: var(--muted); }
+.arrowhead { fill: var(--faint); }
 
 /* Footer */
-.site-footer { padding: 1.8rem 0 3rem; font-size: 0.82em; color: var(--muted); }
-.site-footer p { margin: 0 0 0.5em; max-width: var(--measure); }
+.site-footer { padding: 2rem 0 3.5rem; font-family: var(--font-ui); font-size: 0.72em; line-height: 1.6; color: var(--muted); }
+.site-footer p { margin: 0 0 0.6em; max-width: var(--measure); }
 .site-footer a { color: var(--muted); }
 .site-footer a:hover { color: var(--ink-strong); }
 .sources a { margin-right: 0.9em; white-space: nowrap; }
@@ -248,10 +270,10 @@ MOON = ('<svg class="moon" viewBox="0 0 16 16" aria-hidden="true" fill="currentC
 
 
 def _font_faces(base: str) -> str:
-    """The books' STIX Two Text @font-face rules (from the engine stylesheet), with their
-    URLs pointing at a book's copy of the fonts (`base`, e.g. "fd1/")."""
+    """The books' STIX Two Text and Inter @font-face rules (from the engine stylesheet), with
+    their URLs pointing at a book's copy of the fonts (`base`, e.g. "fd1/")."""
     css = (ENGINE_ROOT / "templates" / "html" / "styles.css").read_text(encoding="utf-8")
-    faces = re.findall(r"@font-face\s*\{[^}]*font-family:\s*'STIX Two Text'[^}]*\}", css)
+    faces = re.findall(r"@font-face\s*\{[^}]*font-family:\s*'(?:STIX Two Text|Inter)'[^}]*\}", css)
     return "\n".join(face.replace("url('fonts/", f"url('{base}fonts/") for face in faces)
 
 

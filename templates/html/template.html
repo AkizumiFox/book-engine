@@ -56,8 +56,10 @@
     $endif$
     <link rel="icon" href="$if(asset-prefix)$$asset-prefix$$endif$favicon.svg" type="image/svg+xml">
 
-    <!-- Fonts: STIX Two Text (matches MathJax's math font), served with the site -->
+    <!-- Fonts: STIX Two Text (matches MathJax's math font) for the text, Inter for the
+         interface, served with the site -->
     <link rel="preload" href="$if(asset-prefix)$$asset-prefix$$endif$fonts/stix-two-text-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="$if(asset-prefix)$$asset-prefix$$endif$fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 
     <!-- Styles -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>

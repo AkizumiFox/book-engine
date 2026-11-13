@@ -201,15 +201,18 @@ class TestLibraryBuild(unittest.TestCase):
         self.assertIn("<h1>Test Library</h1>", landing)
         cards = re.findall(r'<article class="card" id="book-(\w+)"', landing)
         self.assertEqual(cards, ["a", "b"])
-        self.assertIn('<a href="alpha/">Alpha Book</a></h3>', landing)
-        self.assertIn('<h2 id="series-first-series">First Series</h2>', landing)
-        self.assertIn('<h2 id="series-second-series">Second Series</h2>', landing)
+        self.assertIn('<h3 id="title-a"><a class="card-link" href="alpha/">Alpha Book</a></h3>', landing)
+        self.assertIn('<h3 id="series-first-series">First Series</h3>', landing)
+        self.assertIn('<h3 id="series-second-series">Second Series</h3>', landing)
+        self.assertIn('<h2 id="volumes-title">Volumes</h2>', landing)
         self.assertIn('href="notes/notes.html"', landing)
         self.assertIn("prefers-color-scheme: dark", landing)
-        self.assertIn("1 of 3 chapters written", landing)               # chapters against "planned"
+        self.assertIn("1/3 chapters", landing)                          # chapters against "planned"
+        self.assertEqual(landing.count('<i class="done"></i>'), 1)      # one segment per chapter
         self.assertIn("Mirrored here from its own site", landing)       # beta has a canonical home
         # the books' fonts, served by a book; nothing loaded from elsewhere
-        self.assertIn("url('alpha/fonts/stix-two-text-latin-400-normal.woff2')", landing)
+        self.assertIn("url('alpha/fonts/source-serif-4-latin-wght-normal.woff2')", landing)
+        self.assertIn("url('alpha/fonts/inter-var-latin-opsz-normal.woff2')", landing)
         self.assertEqual(re.findall(r'<(?:script|link)\b[^>]*(?:src|href)="https?://[^"]*"', landing),
                          [f'<link rel="canonical" href="{SITE}"'])
         self.assertTrue((self.out / "notes" / "notes.html").is_file())

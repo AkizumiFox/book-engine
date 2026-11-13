@@ -4,9 +4,10 @@ Build System Landing Module
 The library's front page (index.html) and its root 404.html, generated from the library
 manifest (build/library.py) and from what the build learned about each book.
 
-The landing page has the books' own look: STIX Two Text for the text and Inter for the
-small interface labels (the fonts a book already serves, so nothing is fetched from elsewhere), the same colour tokens and light/dark themes (the
-same saved "book-theme" choice), the same fluid text size and line length.
+The landing page is a product-style front page in the books' own look: Inter for the
+interface and headings, Source Serif 4 for the blurbs (the fonts a book already serves,
+so nothing is fetched from elsewhere), the same OKLCH colour tokens and light/dark themes
+(the same saved "book-theme" choice).
 
 Manifest keys it reads (all optional except the books):
 
@@ -52,243 +53,392 @@ from .macros import plain_text
 # Styles
 # =============================================================================
 
-TOKENS_LIGHT = """
-  color-scheme: light;
-  --paper: #ffffff;
-  --ink: #26282d;
-  --ink-strong: #121418;
-  --muted: #5f6570;
-  --faint: #8a909a;
-  --rule: #e4e6ea;
-  --rule-strong: #cdd1d8;
-  --subtle: #f7f8fa;
-  --accent: #2b5ba3;
-  --accent-soft: #ebf0f8;
-  --hover-wash: #eff3f9;
-  --hover-border: #a9bfdf;
-  --hover-shadow: rgba(31, 60, 110, 0.14);
-  --note: #c08a1e;
-"""
-
-TOKENS_DARK = """
-  color-scheme: dark;
-  --paper: #16181c;
-  --ink: #d8dbe0;
-  --ink-strong: #f1f2f4;
-  --muted: #a1a7b1;
-  --faint: #7d838d;
-  --rule: #2a2e35;
-  --rule-strong: #3a3f47;
-  --subtle: #1c1f24;
-  --accent: #8fb2ea;
-  --accent-soft: #1e2838;
-  --hover-wash: #1f2938;
-  --hover-border: #4d6a94;
-  --hover-shadow: rgba(0, 0, 0, 0.55);
-  --note: #d9a648;
-"""
-
 PAGE_STYLE = """
-:root {%(light)s
-  --font-body: 'STIX Two Text', 'STIX Two', 'Times New Roman', serif;
-  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  /* the books' fluid text: 20px up to a 1440px window, 26px at 2560px; 18px on phones */
-  --text-size: clamp(20px, calc(12.3px + 0.536vw), 26px);
-  --measure: calc(var(--text-size) * 31.2);     /* the books' column: about 72 characters */
-  --page-width: calc(var(--text-size) * 56);
-  --gutter: 16px;
+%(tokens)s
+:root {
+  --font-body: 'Source Serif 4', 'Source Serif 4 Fallback', Georgia, serif;
+  --font-ui: 'Inter', 'Inter Fallback', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --page-width: 72rem;
+  --gutter: max(1rem, env(safe-area-inset-left));
+  --radius: 12px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --shadow-color: 220 25%% 20%%;
+  --shadow-xs: 0 1px 2px hsl(var(--shadow-color) / 0.06);
+  --shadow-sm: 0 1px 2px hsl(var(--shadow-color) / 0.06), 0 2px 6px -2px hsl(var(--shadow-color) / 0.08);
+  --shadow-md: 0 2px 4px -1px hsl(var(--shadow-color) / 0.06), 0 14px 32px -12px hsl(var(--shadow-color) / 0.2);
+  --touch: 2.25rem;
 }
-@media (max-width: 900px) { :root { --text-size: 18px; } }
-@media (min-width: 600px) { :root { --gutter: 32px; } }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {%(dark)s} }
-:root[data-theme="dark"] {%(dark)s}
+@media (pointer: coarse) { :root { --touch: 2.75rem; } }
+@media (min-width: 640px) { :root { --gutter: 2rem; } }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --shadow-color: 220 40%% 2%%;
+  --shadow-xs: 0 1px 2px hsl(var(--shadow-color) / 0.4);
+  --shadow-sm: 0 1px 2px hsl(var(--shadow-color) / 0.4), 0 2px 6px -2px hsl(var(--shadow-color) / 0.5);
+  --shadow-md: 0 2px 4px -1px hsl(var(--shadow-color) / 0.4), 0 16px 36px -12px hsl(var(--shadow-color) / 0.7);
+}
 
 *, *::before, *::after { box-sizing: border-box; }
-html { font-size: 16px; -webkit-text-size-adjust: 100%%; }
+html { font-size: 16px; -webkit-text-size-adjust: 100%%; scroll-padding-top: 5rem; }
 body {
   margin: 0; background: var(--paper); color: var(--ink);
-  font-family: var(--font-body); font-size: var(--text-size); line-height: 1.6;
-  font-kerning: normal; font-variant-numeric: lining-nums proportional-nums;
-  text-rendering: optimizeLegibility;
+  font-family: var(--font-ui); font-size: 1rem; line-height: 1.6;
+  font-kerning: normal; font-variant-numeric: lining-nums proportional-nums; font-optical-sizing: auto;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
 }
-a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 0.2em;
-    text-decoration-color: color-mix(in srgb, var(--accent) 30%%, transparent); }
-a:hover { color: var(--ink-strong); text-decoration-color: currentColor; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
-.skip-link { position: absolute; left: -9999px; top: 0; }
-.skip-link:focus { left: var(--gutter); top: 8px; background: var(--paper); padding: 4px 8px; z-index: 2; }
+a { color: var(--accent); text-decoration-thickness: from-font; text-underline-offset: 0.18em;
+    text-decoration-color: color-mix(in srgb, var(--accent) 35%%, transparent); }
+a:hover { color: var(--accent-strong); text-decoration-color: currentColor; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.skip-link { position: fixed; left: var(--gutter); top: 0; z-index: 30; padding: 0.5rem 0.9rem; border-radius: 6px;
+             background: var(--ink-strong); color: var(--paper); text-decoration: none; transform: translateY(-120%%); }
+.skip-link:focus { top: 0.6rem; transform: none; }
 .visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden;
                    clip-path: inset(50%%); white-space: nowrap; }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-
-.page { max-width: calc(var(--page-width) + 2 * var(--gutter)); margin: 0 auto; padding: 0 var(--gutter); }
+.wrap, .page { max-width: calc(var(--page-width) + 2 * var(--gutter)); margin: 0 auto;
+        padding-inline: max(var(--gutter), env(safe-area-inset-left)) max(var(--gutter), env(safe-area-inset-right)); }
+.tnum { font-variant-numeric: tabular-nums; }
 
 /* Header */
-.masthead { position: relative; padding: clamp(2.5rem, 8vw, 5.5rem) 0 clamp(2rem, 5vw, 3rem);
-            border-bottom: 1px solid var(--rule); }
-.masthead h1 { margin: 0 0 0.4em; font-size: 2.7em; line-height: 1.05; font-weight: 600;
-               letter-spacing: -0.015em; color: var(--ink-strong); padding-right: 2.5rem; }
-.tagline { margin: 0 0 0.7em; max-width: calc(var(--measure) * 0.92); font-size: 1.32em; line-height: 1.4;
-           color: var(--ink-strong); text-wrap: pretty; }
-.usage { margin: 0 0 1.3em; max-width: var(--measure); color: var(--muted); text-wrap: pretty; }
-/* The work-in-progress note: a quiet tag, not a line of text */
-.status { display: inline-flex; align-items: baseline; gap: 0.6em; margin: 0; max-width: var(--measure);
-          padding: 0.45em 0.85em; border: 1px solid var(--rule); border-radius: 8px; background: var(--subtle);
-          font-family: var(--font-ui); font-size: 0.72em; line-height: 1.5; color: var(--muted); }
-.status::before { content: ""; flex: none; width: 0.5em; height: 0.5em; border-radius: 50%%;
-                  background: var(--note); transform: translateY(-0.05em); }
-.theme-toggle { position: absolute; top: clamp(1.4rem, 5vw, 2.2rem); right: 0; display: inline-flex;
-                align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; padding: 0;
-                border: 1px solid var(--rule); border-radius: 8px; background: transparent;
-                color: var(--muted); cursor: pointer; }
-.theme-toggle:hover { color: var(--ink-strong); background: var(--subtle); }
-.theme-toggle svg { width: 1.05rem; height: 1.05rem; }
-.theme-toggle .moon { display: none; }
-:root[data-theme="dark"] .theme-toggle .sun { display: none; }
-:root[data-theme="dark"] .theme-toggle .moon { display: inline; }
+.top { position: sticky; top: 0; z-index: 20; padding-top: env(safe-area-inset-top);
+       background: color-mix(in srgb, var(--paper) 82%%, transparent);
+       -webkit-backdrop-filter: saturate(1.6) blur(14px); backdrop-filter: saturate(1.6) blur(14px);
+       border-bottom: 1px solid transparent; transition: border-color 0.2s;
+       view-transition-name: site-header; }
+.top.scrolled { border-bottom-color: var(--rule); }
+.top .wrap { display: flex; align-items: center; gap: 0.5rem; height: 3.5rem; }
+.brand { display: inline-flex; align-items: center; gap: 0.5rem; min-height: var(--touch); margin-right: auto;
+         color: var(--ink-strong); font-weight: 650; font-size: 0.9375rem; letter-spacing: -0.012em; text-decoration: none; }
+.brand:hover { color: var(--ink-strong); }
+.brand svg { width: 1.375rem; height: 1.375rem; fill: var(--ink-strong); stroke: var(--paper); stroke-width: 1.9;
+             stroke-linecap: round; stroke-linejoin: round; }
+.brand svg rect { stroke: none; }
+.top-nav { display: flex; gap: 0.125rem; }
+.top-nav a { display: inline-flex; align-items: center; min-height: var(--touch); padding: 0 0.7rem; border-radius: 6px;
+             color: var(--muted); font-size: 0.875rem; font-weight: 500; text-decoration: none; }
+.top-nav a:hover { background: var(--hover-wash); color: var(--ink-strong); }
+@media (max-width: 640px) { .top-nav { display: none; } }
+.theme-toggle { position: relative; display: inline-flex; align-items: center; justify-content: center;
+                width: var(--touch); height: var(--touch); padding: 0; border: 0; border-radius: 6px;
+                background: transparent; color: var(--muted); cursor: pointer;
+                transition: background-color 0.12s, color 0.12s, transform 0.12s; }
+.theme-toggle:hover { background: var(--hover-wash); color: var(--ink-strong); }
+.theme-toggle:active { transform: scale(0.94); }
+.theme-toggle svg { position: absolute; width: 1.125rem; height: 1.125rem;
+                    transition: opacity 0.18s var(--ease-out), transform 0.26s var(--ease-out); }
+.theme-toggle .moon { margin-left: 1px; }
+.theme-toggle .sun, :root[data-theme="dark"] .theme-toggle .moon { opacity: 0; transform: rotate(-60deg) scale(0.5); }
+:root[data-theme="dark"] .theme-toggle .sun { opacity: 1; transform: none; }
+
+/* Hero */
+.hero { padding: clamp(3rem, 9vw, 6.5rem) 0 clamp(2.5rem, 6vw, 4rem); }
+.status { display: inline-flex; align-items: center; gap: 0.55rem; margin: 0 0 1.5rem; padding: 0.35rem 0.8rem 0.35rem 0.6rem;
+          border: 1px solid var(--rule); border-radius: 999px; background: var(--subtle);
+          color: var(--muted); font-size: 0.8125rem; line-height: 1.4; max-width: 100%%; }
+.status::before { content: ""; flex: none; width: 0.5rem; height: 0.5rem; border-radius: 50%%; background: var(--note);
+                  box-shadow: 0 0 0 3px color-mix(in srgb, var(--note) 22%%, transparent); }
+.hero h1 { margin: 0 0 0.35em; color: var(--ink-strong); font-size: clamp(2.6rem, 7vw, 4.5rem); font-weight: 700;
+           line-height: 1.02; letter-spacing: -0.04em; text-wrap: balance; }
+.tagline { margin: 0 0 1.25rem; max-width: 34em; color: var(--ink); font-family: var(--font-body);
+           font-size: clamp(1.2rem, 2.2vw, 1.5rem); line-height: 1.45; text-wrap: pretty; }
+.usage { margin: 0 0 2rem; max-width: 40em; color: var(--muted); font-size: 0.9375rem; line-height: 1.6; text-wrap: pretty; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.btn { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 2.75rem; padding: 0 1.1rem;
+       border: 1px solid var(--rule-strong); border-radius: 8px; background: var(--paper); color: var(--ink-strong);
+       font-size: 0.9375rem; font-weight: 600; text-decoration: none; box-shadow: var(--shadow-xs);
+       transition: border-color 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out), transform 0.12s var(--ease-out), background-color 0.18s; }
+.btn:hover { color: var(--ink-strong); border-color: var(--hover-border); box-shadow: var(--shadow-sm); }
+.btn:active { transform: scale(0.98); }
+.btn.primary { border-color: transparent; background: var(--ink-strong); color: var(--paper); }
+.btn.primary:hover { color: var(--paper); background: color-mix(in srgb, var(--ink-strong) 88%%, var(--accent)); }
+.btn svg { width: 1rem; height: 1rem; transition: transform 0.18s var(--ease-out); }
+.btn:hover svg { transform: translateX(3px); }
+.btn .code { padding: 0.25em 0.4em; border-radius: 4px; background: color-mix(in srgb, var(--paper) 18%%, transparent);
+             font-size: 0.75rem; letter-spacing: 0.02em; line-height: 1; text-box: trim-both cap alphabetic; }
+
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 21rem); align-items: end; gap: 2rem 4rem; }
+@media (max-width: 900px) { .hero .wrap { grid-template-columns: 1fr; } }
+.hero-stats { padding: 1.25rem 1.25rem 1.1rem; border: 1px solid var(--rule); border-radius: 16px; background: var(--pane);
+              box-shadow: var(--shadow-xs); }
+.hero-stats dl { display: grid; gap: 0; margin: 0; }
+.stat { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: 0.7rem 0;
+        border-bottom: 1px solid var(--rule); }
+.stat:first-child { padding-top: 0; }
+.stat dt { color: var(--muted); font-size: 0.8125rem; font-weight: 500; }
+.stat dd { display: flex; align-items: baseline; gap: 0.5rem; margin: 0; }
+.stat-num { color: var(--ink-strong); font-size: 1.75rem; font-weight: 650; letter-spacing: -0.03em; line-height: 1;
+            font-variant-numeric: tabular-nums; }
+.stat-note { color: var(--faint); font-size: 0.75rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.stat-bar { height: 6px; margin-top: 1rem; border-radius: 999px; background: var(--rule); overflow: hidden; }
+.stat-bar span { display: block; height: 100%%; background: var(--accent); border-radius: inherit;
+                 transform-origin: 0 50%%; transform: scaleX(var(--w)); }
 
 /* Sections */
-.band { padding: 2.6rem 0 2.8rem; border-bottom: 1px solid var(--rule); }
-.band-head { max-width: var(--measure); margin-bottom: 1.3rem; }
-.band h2 { margin: 0 0 0.25em; font-size: 1.45em; line-height: 1.25; font-weight: 600; color: var(--ink-strong); }
-.band-head p { margin: 0; color: var(--muted); font-size: 0.95em; text-wrap: pretty; }
+.band { padding: 3.5rem 0; border-top: 1px solid var(--rule); }
+.band-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.5rem 2rem;
+             margin-bottom: 1.75rem; }
+.band h2 { margin: 0; color: var(--ink-strong); font-size: 1.625rem; font-weight: 650; letter-spacing: -0.022em; line-height: 1.2; }
+.band-head p { margin: 0; max-width: 36rem; color: var(--muted); font-size: 0.9375rem; text-wrap: pretty; }
+.eyebrow { display: block; margin-bottom: 0.4rem; color: var(--accent); font-size: 0.75rem; font-weight: 600;
+           letter-spacing: 0.08em; text-transform: uppercase; font-feature-settings: "case"; }
 
-/* A run of one-card sections: side by side, their heads and cards on shared rows */
-.band-row { display: grid; gap: 0 1.25rem; border-bottom: 1px solid var(--rule);
-            grid-template-columns: repeat(auto-fit, minmax(min(100%%, calc(var(--text-size) * 15.5)), 1fr)); }
-.band-row > .band { display: grid; grid-row: span 2; grid-template-rows: subgrid; row-gap: 0; border-bottom: 0; }
-.band-row .band-head { margin-bottom: 1.3rem; }
-.band-row .cards { grid-template-columns: 1fr; }
-@media (max-width: 640px) { .band-row > .band + .band { border-top: 1px solid var(--rule); } }
-
-/* Book cards */
-.cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.25rem;
-         grid-template-columns: repeat(auto-fill, minmax(min(100%%, calc(var(--text-size) * 15.5)), 1fr)); }
-.card { height: 100%%; display: flex; flex-direction: column; gap: 0.6em;
-        padding: 1.25em 1.35em 1.1em; border: 1px solid var(--rule); border-radius: 12px; background: var(--paper);
-        font-size: 0.86em; line-height: 1.55;
-        transition: border-color 0.18s ease, box-shadow 0.25s ease, transform 0.25s ease; }
-.card:hover { border-color: var(--hover-border); box-shadow: 0 14px 32px -20px var(--hover-shadow);
-              transform: translateY(-1px); }
-.card-code { align-self: flex-start; margin: 0; padding: 0.22em 0.6em; border-radius: 6px;
-             background: var(--accent-soft); color: var(--accent);
-             font-family: var(--font-ui); font-size: 0.72em; font-weight: 600; letter-spacing: 0.05em;
-             line-height: 1.4; font-variant-numeric: tabular-nums; }
-.card h3 { margin: 0.05em 0 0; font-size: 1.32em; line-height: 1.25; font-weight: 600; color: var(--ink-strong);
-           text-wrap: balance; }
-.card h3 a { color: inherit; text-decoration: none; }
-.card h3 a:hover { color: var(--accent); }
-.card-blurb { margin: 0; color: var(--ink); }
-.progress { margin: 0.3em 0 0; display: flex; flex-direction: column; align-items: flex-start; gap: 0.45em;
-            font-family: var(--font-ui); font-size: 0.74em; color: var(--muted); }
-.segments { display: inline-flex; gap: 3px; }
-.segments i { display: block; width: 1.5em; height: 0.36em; border-radius: 999px; background: var(--rule); }
-.segments i.done { background: var(--accent); }
-.card-links { margin: auto 0 0; padding-top: 0.8em; display: flex; flex-wrap: wrap; gap: 0.3em 1.3em;
-              border-top: 1px solid var(--rule); font-family: var(--font-ui); font-size: 0.8em; }
-.card-links a { font-weight: 500; text-decoration: none; }
-.card-links a:first-child::after { content: " \\2192"; }
-.card-links a:hover { text-decoration: underline; }
-.nowrap { white-space: nowrap; }
-.card-note { margin: 0; font-size: 0.85em; color: var(--muted); }
-
-/* Reading order */
-.order { margin: 0; padding: 1.6rem 1.4rem 1.2rem; background: var(--paper); border: 1px solid var(--rule); border-radius: 12px; }
-.order svg { display: block; width: 100%%; height: auto; margin: 0 auto 1rem; }
+/* Reading-order map */
+.order { margin: 0; padding: clamp(1rem, 3vw, 2rem); border: 1px solid var(--rule); border-radius: 16px;
+         background: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--ink) 10%%, transparent) 1px, transparent 0) 0 0 / 18px 18px, var(--pane); }
+.order svg { display: block; width: 100%%; height: auto; margin: 0 auto; overflow: visible; }
 .order .narrow { display: none; }
 @media (max-width: 640px) { .order .wide { display: none; } .order .narrow, .order .wide.narrow-too { display: block; } }
-.order figcaption { max-width: var(--measure); margin: 0 auto; padding-top: 0.9rem; border-top: 1px solid var(--rule);
-                    color: var(--muted); font-size: 0.85em; line-height: 1.6; text-wrap: pretty; }
-.order figcaption p { margin: 0 0 0.4em; }
-.node rect { fill: var(--paper); stroke: var(--rule-strong); stroke-width: 1; }
-.node.book rect { fill: var(--accent-soft); stroke: color-mix(in srgb, var(--accent) 45%%, var(--paper)); }
-.node.planned rect { stroke-dasharray: 5 4; fill: none; }
+.node rect { fill: var(--paper); stroke: var(--rule-strong); stroke-width: 1;
+             transition: stroke 0.18s var(--ease-out), fill 0.18s var(--ease-out); }
+.node.book rect { stroke: var(--accent-line); }
+.node.planned rect, .node.nobook rect { stroke-dasharray: 4 4; fill: color-mix(in srgb, var(--paper) 60%%, transparent); }
 .node text { font-family: var(--font-ui); }
-.node .code { font-size: 15px; font-weight: 600; fill: var(--ink-strong); letter-spacing: 0.02em; }
+.node .code { font-size: 14px; font-weight: 700; fill: var(--ink-strong); letter-spacing: 0.01em; }
 .node.book .code { fill: var(--accent); }
-.node .name { font-size: 11.5px; fill: var(--muted); }
-.edge { stroke: var(--faint); stroke-width: 1.2; fill: none; }
+.node .name { font-size: 11.5px; font-weight: 500; fill: var(--muted); }
+.node .mine { font-size: 10px; font-weight: 600; fill: var(--success); }
+a.node { cursor: pointer; outline: none; }
+a.node:hover rect, a.node:focus-visible rect, .node.lit rect { stroke: var(--accent); fill: var(--accent-soft); }
+a.node:focus-visible rect { stroke-width: 2; }
+.edge { stroke: var(--rule-strong); stroke-width: 1.5; fill: none; transition: stroke 0.18s var(--ease-out); }
 .edge.optional { stroke-dasharray: 4 4; }
-.arrowhead { fill: var(--faint); }
+.edge.lit { stroke: var(--accent); }
+.arrowhead { fill: var(--rule-strong); }
+.order details { max-width: 46rem; margin: 1.25rem 0 0; color: var(--muted); font-size: 0.875rem; }
+.order summary { display: inline-flex; align-items: center; gap: 0.4rem; min-height: var(--touch); cursor: pointer;
+                 color: var(--ink); font-weight: 550; list-style: none; }
+.order summary::-webkit-details-marker { display: none; }
+.order summary::before { content: ""; width: 0.8rem; height: 0.8rem; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='m9 6 6 6-6 6'/></svg>") center / contain no-repeat;
+  mask: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='m9 6 6 6-6 6'/></svg>") center / contain no-repeat;
+  transition: transform 0.22s var(--ease-out); }
+.order details[open] summary::before { transform: rotate(90deg); }
+.order details p { margin: 0.25rem 0 0; line-height: 1.65; text-wrap: pretty; }
+
+/* Volume cards */
+.series + .series, .series + .series-row, .series-row + .series { margin-top: 2.75rem; }
+.series-row { display: grid; gap: 0 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%%, 19rem), 1fr)); }
+.series-row > .series { display: grid; grid-row: span 2; grid-template-rows: subgrid; margin: 0; }
+.series-row .series-head { flex-direction: column; gap: 0.25rem; }
+.series-row .cards { grid-template-columns: 1fr; }
+@media (max-width: 700px) { .series-row > .series + .series { margin-top: 2.75rem; } }
+.series-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 1.25rem; margin-bottom: 1rem; }
+.series-head h3 { margin: 0; color: var(--ink-strong); font-size: 1rem; font-weight: 650; letter-spacing: -0.01em; }
+.series-head p { margin: 0; max-width: 44rem; color: var(--muted); font-size: 0.875rem; text-wrap: pretty; }
+.cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem;
+         grid-template-columns: repeat(auto-fill, minmax(min(100%%, 19rem), 1fr)); }
+.cards > li { display: flex; }
+.card { position: relative; display: flex; flex-direction: column; gap: 0.75rem; width: 100%%;
+        padding: 1.25rem 1.25rem 1rem; border: 1px solid var(--rule); border-radius: var(--radius);
+        background: var(--paper); box-shadow: var(--shadow-xs);
+        transition: border-color 0.2s var(--ease-out), box-shadow 0.25s var(--ease-out), transform 0.25s var(--ease-out); }
+.card:has(.card-link:hover), .card:has(.card-link:focus-visible) {
+  border-color: var(--hover-border); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.card-top { display: flex; align-items: center; gap: 0.5rem; }
+.card-code { padding: 0.35em 0.5em; border-radius: 5px; background: var(--accent-soft); color: var(--accent);
+             font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em; line-height: 1;
+             font-variant-numeric: tabular-nums; text-box: trim-both cap alphabetic; }
+.card-series { color: var(--faint); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.07em;
+               text-transform: uppercase; font-feature-settings: "case"; }
+.card-arrow { margin-left: auto; width: 1.1rem; height: 1.1rem; color: var(--faint);
+              transition: transform 0.2s var(--ease-out), color 0.2s; }
+.card:has(.card-link:hover) .card-arrow { color: var(--accent); transform: translate(2px, -2px); }
+.card h3 { margin: 0; color: var(--ink-strong); font-size: 1.1875rem; font-weight: 650; line-height: 1.3;
+           letter-spacing: -0.015em; text-wrap: balance; }
+.card-link { color: inherit; text-decoration: none; }
+.card-link::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }   /* the whole card is the link */
+.card-link:hover { color: inherit; }
+.card-link:focus-visible { outline: none; }
+.card:has(.card-link:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.card-blurb { margin: 0; color: var(--muted); font-family: var(--font-body); font-size: 0.96875rem; line-height: 1.6;
+              text-wrap: pretty; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+.card.expanded .card-blurb { -webkit-line-clamp: unset; }
+.card-more { position: relative; z-index: 1; align-self: flex-start; margin-top: -0.4rem; padding: 0.25rem 0;
+             border: 0; background: none; color: var(--accent); font: inherit; font-size: 0.8125rem; font-weight: 550; cursor: pointer; }
+.card-more:hover { text-decoration: underline; }
+.card-more[hidden] { display: none; }
+.card-meta { margin-top: auto; display: grid; gap: 0.5rem; padding-top: 0.25rem; }
+.meter-row { display: flex; align-items: center; gap: 0.75rem; color: var(--muted); font-size: 0.8125rem; }
+.segments { display: flex; flex: 1; gap: 3px; min-width: 4rem; max-width: 9rem; }
+.segments i { flex: 1; height: 0.375rem; border-radius: 2px; background: var(--rule); }
+.segments i.done { background: var(--accent); }
+.mine { min-height: 1.25rem; color: var(--faint); font-size: 0.75rem; }
+.mine b { color: var(--success); font-weight: 600; }
+.card-links { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 0.25rem 1rem;
+              padding-top: 0.75rem; border-top: 1px solid var(--rule); font-size: 0.8125rem; }
+.card-links a { display: inline-flex; align-items: center; min-height: 2rem; font-weight: 550; text-decoration: none; }
+.card-links a:hover { text-decoration: underline; }
+@media (pointer: coarse) { .card-links a { min-height: 2.75rem; } }
+.card-note { margin: 0; color: var(--faint); font-size: 0.75rem; }
+.nowrap { white-space: nowrap; }
+
+/* Staggered arrival of the cards: each a little after the one before, transform and
+   opacity only (no layout shift); off for reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+  .cards > li { animation: rise 0.5s var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * 45ms + 60ms); }
+  .hero-text > *, .hero-stats { animation: rise 0.6s var(--ease-out) backwards; }
+  .hero-text > :nth-child(2) { animation-delay: 40ms; }
+  .hero-text > :nth-child(3) { animation-delay: 80ms; }
+  .hero-text > :nth-child(4) { animation-delay: 120ms; }
+  .hero-text > :nth-child(5) { animation-delay: 160ms; }
+  .hero-stats { animation-delay: 200ms; }
+}
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } }
 
 /* Footer */
-.site-footer { padding: 2rem 0 3.5rem; font-family: var(--font-ui); font-size: 0.72em; line-height: 1.6; color: var(--muted); }
-.site-footer p { margin: 0 0 0.6em; max-width: var(--measure); }
+.site-footer { padding: 2.5rem 0 calc(3rem + env(safe-area-inset-bottom)); border-top: 1px solid var(--rule);
+               color: var(--muted); font-size: 0.8125rem; line-height: 1.65; }
+.site-footer p { margin: 0 0 0.6em; max-width: 46rem; text-wrap: pretty; }
 .site-footer a { color: var(--muted); }
 .site-footer a:hover { color: var(--ink-strong); }
-.sources a { margin-right: 0.9em; white-space: nowrap; }
+.sources { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
+.sources a { white-space: nowrap; }
 
-/* Math rendered at build time (mathjax.css styles the glyphs) */
-mjx-container { letter-spacing: normal; word-spacing: normal; }
+mjx-container { font-size: 100%% !important; letter-spacing: normal; word-spacing: normal; }
+.tagline mjx-container, .card-blurb mjx-container { font-size: 107%% !important; }
+
+@view-transition { navigation: auto; }
+::view-transition-group(book-code) { animation-duration: 0.35s; animation-timing-function: var(--ease-out); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}
 
 /* 404 */
-.not-found { max-width: var(--measure); padding: 3rem 0; }
+.not-found { max-width: 40rem; padding: 4rem 0; }
+.not-found h1 { font-size: 2.25rem; letter-spacing: -0.03em; }
 """
 
 # The books' setting (main.js stores it as "book-theme"): one choice for the whole site
 THEME_SCRIPT = """(function () {
-    var theme = null;
+    var theme = null, root = document.documentElement;
     try { theme = localStorage.getItem('book-theme'); } catch (e) {}
-    if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+    root.dataset.theme = theme === 'light' || theme === 'dark' ? theme
+        : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 })();"""
 
 TOGGLE_SCRIPT = """(function () {
-    var button = document.querySelector('.theme-toggle');
-    if (!button) return;
     var root = document.documentElement;
-    function current() {
-        return root.dataset.theme
-            || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    }
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+    var button = document.querySelector('.theme-toggle');
     function show() {
-        var dark = current() === 'dark';
+        var dark = root.dataset.theme === 'dark';
         button.setAttribute('aria-pressed', dark ? 'true' : 'false');
-        button.title = dark ? 'Light mode' : 'Dark mode';
+        button.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
     }
-    button.hidden = false;
-    show();
-    button.addEventListener('click', function () {
-        var next = current() === 'dark' ? 'light' : 'dark';
-        root.dataset.theme = next;
-        try { localStorage.setItem('book-theme', next); } catch (e) {}
+    if (button) {
+        button.hidden = false;
         show();
+        button.addEventListener('click', function () {
+            var next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+            root.dataset.theme = next;          // optimistic: the page changes first
+            show();
+            try { localStorage.setItem('book-theme', next); } catch (e) {}
+        });
+    }
+    // The header gains its rule once the page scrolls under it
+    var top = document.querySelector('.top');
+    var onScroll = function () { top && top.classList.toggle('scrolled', window.scrollY > 4); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    // Your progress, from what each book stored in this browser (sections marked done)
+    document.querySelectorAll('[data-book-key]').forEach(function (el) {
+        var done = [];
+        try { done = JSON.parse(localStorage.getItem('atlas:done:' + el.dataset.bookKey)) || []; } catch (e) {}
+        var total = +el.dataset.sections || 0;
+        if (done.length) {
+            el.innerHTML = '<b>' + done.length + '</b> of ' + total + ' sections done';
+            var node = document.querySelector('.node[data-book="' + el.dataset.prefix + '"] .mine');
+            if (node) node.textContent = Math.round(100 * done.length / Math.max(total, 1)) + '% done';
+        }
+    });
+    // Blurbs longer than four lines fold, with a button to read the rest
+    document.querySelectorAll('.card').forEach(function (card) {
+        var blurb = card.querySelector('.card-blurb'), more = card.querySelector('.card-more');
+        if (!blurb || !more) return;
+        if (blurb.scrollHeight > blurb.clientHeight + 2) {
+            more.hidden = false;
+            more.addEventListener('click', function () {
+                var open = card.classList.toggle('expanded');
+                more.setAttribute('aria-expanded', open ? 'true' : 'false');
+                more.textContent = open ? 'Less' : 'More';
+            });
+        }
+    });
+    // Map: hovering a volume lights it and the arrows into and out of it
+    document.querySelectorAll('.order svg').forEach(function (svg) {
+        svg.querySelectorAll('.node[data-id]').forEach(function (node) {
+            var id = node.dataset.id;
+            function light(on) {
+                svg.querySelectorAll('.edge[data-from="' + id + '"], .edge[data-to="' + id + '"]').forEach(function (e) {
+                    e.classList.toggle('lit', on);
+                });
+            }
+            node.addEventListener('pointerenter', function () { light(true); });
+            node.addEventListener('pointerleave', function () { light(false); });
+            node.addEventListener('focus', function () { light(true); });
+            node.addEventListener('blur', function () { light(false); });
+        });
+    });
+    // Shared element: the clicked card's code chip becomes the book page's header chip
+    var clicked = null;
+    document.addEventListener('click', function (event) {
+        clicked = event.target.closest && event.target.closest('.card, a.node');
+    });
+    window.addEventListener('pageswap', function (event) {
+        if (!event.viewTransition || reduce.matches || !clicked) return;
+        var chip = clicked.querySelector('.card-code');
+        if (chip) chip.style.viewTransitionName = 'book-code';
     });
 })();"""
 
-SUN = ('<svg class="sun" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 11a3 3 0 1 1 0-6 '
-       '3 3 0 0 1 0 6m0 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 '
-       '13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 '
-       '.5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 '
-       '1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 '
-       '0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 '
-       '.707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 '
-       '1.414a.5.5 0 0 1 0 .708"/></svg>')
-MOON = ('<svg class="moon" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M6 .278a.77.77 0 0 1 '
-        '.08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 '
-        '0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 '
-        '.278"/></svg>')
+SUN = ('<svg class="sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" '
+       'stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 '
+       '1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>')
+MOON = ('<svg class="moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" '
+        'stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>')
+MARK = ('<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5.5"/>'
+        '<path d="M7 16.5 12 7l5 9.5M8.8 13.2h6.4"/></svg>')
+ARROW = ('<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" '
+         'stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>')
+ARROW_UP = ('<svg class="card-arrow" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" '
+            'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg>')
+
+
+def _styles_css() -> str:
+    return (ENGINE_ROOT / "templates" / "html" / "styles.css").read_text(encoding="utf-8")
+
+
+def _tokens() -> str:
+    """The books' colour tokens (OKLCH with sRGB fallbacks), from the engine stylesheet."""
+    match = re.search(r"/\* tokens:start.*?\*/(.*?)/\* tokens:end \*/", _styles_css(), re.S)
+    return match.group(1).replace("%", "%%") if match else ""
 
 
 def _font_faces(base: str) -> str:
-    """The books' STIX Two Text and Inter @font-face rules (from the engine stylesheet), with
-    their URLs pointing at a book's copy of the fonts (`base`, e.g. "fd1/")."""
-    css = (ENGINE_ROOT / "templates" / "html" / "styles.css").read_text(encoding="utf-8")
-    faces = re.findall(r"@font-face\s*\{[^}]*font-family:\s*'(?:STIX Two Text|Inter)'[^}]*\}", css)
+    """The books' @font-face rules (Source Serif 4, Inter and their metric-matched
+    fallbacks), with their URLs pointing at a book's copy of the fonts (`base`)."""
+    faces = re.findall(r"@font-face\s*\{[^}]*font-family:\s*'(?:Source Serif 4|Inter)(?: Fallback)?'[^}]*\}", _styles_css())
     return "\n".join(face.replace("url('fonts/", f"url('{base}fonts/") for face in faces)
 
 
 def _page(title: str, body: str, head_extra: str = "", scripts: str = "", font_base: str | None = None) -> str:
-    style = PAGE_STYLE % {"light": TOKENS_LIGHT, "dark": TOKENS_DARK}
+    style = PAGE_STYLE % {"tokens": _tokens()}
     if font_base is not None:
         style = _font_faces(font_base) + "\n" + style
+    preload = ""
+    if font_base is not None:
+        preload = (f'<link rel="preload" href="{escape(font_base)}fonts/inter-var-latin-opsz-normal.woff2" as="font" '
+                   f'type="font/woff2" crossorigin>\n')
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>{escape(title)}</title>
-{head_extra}<script>{THEME_SCRIPT}</script>
+{preload}{head_extra}<script>{THEME_SCRIPT}</script>
 <style>{style}</style>
 </head>
 <body>
@@ -370,23 +520,23 @@ def _site_name(url: str) -> str:
 # =============================================================================
 
 def progress(entry: dict) -> str:
-    """The progress line: chapters written (in the book's config) against chapters
-    planned (the manifest's `planned`), and sections; a bar of one mark per chapter."""
+    """Chapters written (the book's config) against chapters planned (the manifest's
+    `planned`): a bar of one segment per chapter and the counts in tabular figures."""
     chapters, sections, planned = entry.get("chapter-count"), entry.get("section-count"), entry.get("planned")
     if chapters is None:
         return ""
     parts = []
     if isinstance(planned, int) and planned >= chapters:
-        parts.append(f"{chapters} of {planned} chapters written")
+        parts.append(f"{chapters}/{planned} chapters")
     else:
         parts.append(f"{chapters} chapter{'s' if chapters != 1 else ''}")
     if sections:
-        parts.append(f"{sections} section{'s' if sections != 1 else ''}")
+        parts.append(f"{sections} sections")
     bar = ""
     if isinstance(planned, int) and 0 < planned <= 40 and planned >= chapters:
         marks = "".join('<i class="done"></i>' if i < chapters else "<i></i>" for i in range(planned))
         bar = f'<span class="segments" aria-hidden="true">{marks}</span>'
-    return f'<p class="progress">{bar}<span>{" · ".join(parts)}</span></p>'
+    return f'<div class="meter-row">{bar}<span class="tnum">{" · ".join(parts)}</span></div>'
 
 
 def book_card(entry: dict, text: Text) -> str:
@@ -394,13 +544,21 @@ def book_card(entry: dict, text: Text) -> str:
     short = escape(entry.get("short") or entry["prefix"].upper())
     href = escape(entry["subdir"]) + "/"
     title_id = f"title-{prefix}"
+    plain = escape(entry.get("title-plain") or plain_text(entry["title"]))
     lines = [f'<article class="card" id="book-{prefix}" aria-labelledby="{title_id}" data-book="{prefix}">',
-             f'<p class="card-code">{short}</p>',
-             f'<h3 id="{title_id}"><a href="{href}">{text.title(entry["title"])}</a></h3>']
+             f'<div class="card-top"><span class="card-code">{short}</span>'
+             f'<span class="card-series">{escape(entry.get("series") or "")}</span>{ARROW_UP}</div>',
+             f'<h3 id="{title_id}"><a class="card-link" href="{href}">{text.title(entry["title"])}</a></h3>']
     if entry.get("blurb"):
         lines.append(f'<p class="card-blurb">{text.html(entry["blurb"])}</p>')
-    lines.append(progress(entry))
-    plain = escape(entry.get("title-plain") or plain_text(entry["title"]))
+        lines.append('<button type="button" class="card-more" aria-expanded="false" hidden>More</button>')
+    meta = progress(entry)
+    if entry.get("section-count"):
+        # filled in from this browser's record of sections marked done (one line, reserved)
+        meta += (f'<div class="mine" data-book-key="{plain}" data-prefix="{prefix}" '
+                 f'data-sections="{entry["section-count"]}">Not started in this browser</div>')
+    if meta:
+        lines.append(f'<div class="card-meta">{meta}</div>')
     links = [f'<a href="{href}" aria-label="Read {plain}">Read</a>']
     if entry.get("pdf-url"):
         links.append(f'<a href="{escape(entry["pdf-url"])}" aria-label="{plain} as a PDF">PDF</a>')
@@ -417,10 +575,9 @@ def book_card(entry: dict, text: Text) -> str:
 def link_card(link: dict, text: Text) -> str:
     href = escape(link.get("href", ""))
     title_id = f"title-{_slug(link.get('title', ''))}"
-    lines = [f'<article class="card" aria-labelledby="{title_id}">']
-    if link.get("label"):
-        lines.append(f'<p class="card-code">{escape(link["label"])}</p>')
-    lines.append(f'<h3 id="{title_id}"><a href="{href}">{text.title(link.get("title", ""))}</a></h3>')
+    lines = [f'<article class="card" aria-labelledby="{title_id}">',
+             f'<div class="card-top"><span class="card-code">{escape(link.get("label") or "Link")}</span>{ARROW_UP}</div>',
+             f'<h3 id="{title_id}"><a class="card-link" href="{href}">{text.title(link.get("title", ""))}</a></h3>']
     if link.get("blurb"):
         lines.append(f'<p class="card-blurb">{text.html(link["blurb"])}</p>')
     lines.append(f'<p class="card-links"><a href="{href}">{escape(link.get("action") or "Open")}</a></p>')
@@ -432,15 +589,16 @@ def link_card(link: dict, text: Text) -> str:
 # Reading-order diagram
 # =============================================================================
 
-NODE_W, NODE_H = 112, 52
+NODE_W, NODE_H = 124, 58
 
 
 def _diagram_svg(diagram: dict, manifest: dict, key: str, css_class: str, caption_id: str) -> str:
-    """One layout of the diagram (`key` is "at" or "at-narrow") as inline SVG."""
+    """One layout of the map (`key` is "at" or "at-narrow") as inline SVG. A volume that
+    is in the library is a link to it; arrows run between the cards' edges."""
     nodes = [n for n in diagram.get("nodes") or [] if isinstance(n.get(key) or n.get("at"), list)]
     if not nodes:
         return ""
-    gap_x, gap_y, pad = (44, 34, 6) if key == "at" else (22, 30, 6)
+    gap_x, gap_y, pad = (48, 40, 8) if key == "at" else (22, 34, 8)
     by_prefix = {e["prefix"]: e for e in manifest["books"]}
     place = {}
     for node in nodes:
@@ -449,10 +607,10 @@ def _diagram_svg(diagram: dict, manifest: dict, key: str, css_class: str, captio
     width = max(x for x, _ in place.values()) + NODE_W / 2 + pad
     height = max(y for _, y in place.values()) + NODE_H / 2 + pad
     marker = f"arrow-{css_class}"
-    parts = [f'<svg class="{css_class}" viewBox="0 0 {width:g} {height:g}" style="max-width:{width * 1.15:g}px" '
-             f'role="img" aria-labelledby="{caption_id}" xmlns="http://www.w3.org/2000/svg">',
-             f'<defs><marker id="{marker}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" '
-             f'orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker></defs>']
+    parts = [f'<svg class="{css_class}" viewBox="0 0 {width:g} {height:g}" style="max-width:{width * 1.2:g}px" '
+             f'role="group" aria-labelledby="{caption_id}" xmlns="http://www.w3.org/2000/svg">',
+             f'<defs><marker id="{marker}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" '
+             f'orient="auto-start-reverse"><path class="arrowhead" d="M0,1 L9,5 L0,9 z"/></marker></defs>']
     for edge in diagram.get("edges") or []:
         if isinstance(edge, list):
             edge = {"from": edge[0], "to": edge[1]}
@@ -461,28 +619,34 @@ def _diagram_svg(diagram: dict, manifest: dict, key: str, css_class: str, captio
         (x1, y1), (x2, y2) = place[edge["from"]], place[edge["to"]]
         dx, dy = x2 - x1, y2 - y1
 
-        def clip(sign):    # where the line between the centres leaves a box, plus a little air
-            tx = (NODE_W / 2 + 3) / abs(dx) if dx else float("inf")
-            ty = (NODE_H / 2 + 3) / abs(dy) if dy else float("inf")
-            return min(tx, ty) * sign
-        t1, t2 = clip(1), 1 - clip(1)
-        a = (x1 + dx * t1, y1 + dy * t1)
-        b = (x1 + dx * t2, y1 + dy * t2)
+        def clip():    # where the line between the centres leaves a card, plus a little air
+            tx = (NODE_W / 2 + 4) / abs(dx) if dx else float("inf")
+            ty = (NODE_H / 2 + 4) / abs(dy) if dy else float("inf")
+            return min(tx, ty)
+        t = clip()
+        a = (x1 + dx * t, y1 + dy * t)
+        b = (x1 + dx * (1 - t), y1 + dy * (1 - t))
         kind = " optional" if edge.get("kind") == "optional" else ""
-        parts.append(f'<line class="edge{kind}" x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" '
-                     f'marker-end="url(#{marker})"/>')
+        parts.append(f'<line class="edge{kind}" data-from="{escape(edge["from"])}" data-to="{escape(edge["to"])}" '
+                     f'x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" marker-end="url(#{marker})"/>')
     for node in nodes:
         x, y = place[node["id"]]
         entry = by_prefix.get(node.get("book") or "")
-        kind = "planned" if node.get("planned") else ("book" if entry else "")
+        kind = "planned" if node.get("planned") else ("book" if entry else "nobook")
         name = node.get("name") or ""
         if node.get("planned"):
             name = f"{name} (planned)" if name else "planned"
         label = node.get("code") or (entry.get("short") if entry else None) or node["id"]
-        parts.append(f'<g class="node {kind}"><rect x="{x - NODE_W / 2:g}" y="{y - NODE_H / 2:g}" '
-                     f'width="{NODE_W}" height="{NODE_H}" rx="7"/>'
-                     f'<text class="code" x="{x:g}" y="{y - 2:g}" text-anchor="middle">{escape(label)}</text>'
-                     f'<text class="name" x="{x:g}" y="{y + 15:g}" text-anchor="middle">{escape(name)}</text></g>')
+        shape = (f'<rect x="{x - NODE_W / 2:g}" y="{y - NODE_H / 2:g}" width="{NODE_W}" height="{NODE_H}" rx="9"/>'
+                 f'<text class="code" x="{x - NODE_W / 2 + 12:g}" y="{y - 4:g}">{escape(label)}</text>'
+                 f'<text class="name" x="{x - NODE_W / 2 + 12:g}" y="{y + 14:g}">{escape(name)}</text>'
+                 f'<text class="mine" x="{x + NODE_W / 2 - 10:g}" y="{y - 4:g}" text-anchor="end"></text>')
+        if entry:
+            title = escape(entry.get("title-plain") or plain_text(entry.get("title") or name))
+            parts.append(f'<a class="node {kind}" data-id="{escape(node["id"])}" data-book="{escape(entry["prefix"])}" '
+                         f'href="{escape(entry["subdir"])}/" aria-label="{escape(label)}: {title}">{shape}</a>')
+        else:
+            parts.append(f'<g class="node {kind}" data-id="{escape(node["id"])}">{shape}</g>')
     parts.append("</svg>")
     return "".join(parts)
 
@@ -499,48 +663,87 @@ def diagram_section(manifest: dict, text: Text) -> str:
         wide = wide.replace('class="wide"', 'class="wide narrow-too"')
     caption = diagram.get("caption") or ""
     title = diagram.get("title") or "Reading order"
-    return (f'<section class="band" aria-labelledby="reading-order">\n'
-            f'<div class="band-head"><h2 id="reading-order">{escape(title)}</h2>'
+    return (f'<section class="band" id="reading-order" aria-labelledby="reading-order-title">\n<div class="wrap">'
+            f'<div class="band-head"><div><span class="eyebrow">Map</span><h2 id="reading-order-title">{escape(title)}</h2></div>'
             + (f"<p>{text.html(diagram['intro'])}</p>" if diagram.get("intro") else "")
             + f'</div>\n<figure class="order">{wide}{narrow}'
-            f'<figcaption id="{caption_id}"><p>{text.html(caption)}</p></figcaption></figure>\n</section>')
+            f'<details><summary>How the volumes connect</summary><p id="{caption_id}">{text.html(caption)}</p></details>'
+            f'</figure>\n</div></section>')
 
 
 # =============================================================================
 # The page
 # =============================================================================
 
+def hero_stats(manifest: dict) -> str:
+    """The library in four numbers (tabular figures, so they line up as they change)."""
+    books = manifest["books"]
+    written = sum(e.get("chapter-count") or 0 for e in books)
+    planned = sum(max(e.get("planned") or 0, e.get("chapter-count") or 0) for e in books)
+    sections = sum(e.get("section-count") or 0 for e in books)
+    series = len({e.get("series") or "" for e in books})
+    stats = [("Volumes", f"{len(books)}", f"in {series} series"),
+             ("Chapters written", f"{written}", f"of {planned} planned" if planned > written else ""),
+             ("Sections", f"{sections}", "each with exercises")]
+    rows = "".join(f'<div class="stat"><dt>{escape(k)}</dt><dd><span class="stat-num">{escape(v)}</span>'
+                   f'{f"<span class=stat-note>{escape(n)}</span>" if n else ""}</dd></div>' for k, v, n in stats)
+    bar = ""
+    if planned:
+        bar = (f'<div class="stat-bar" role="img" aria-label="{written} of {planned} chapters written">'
+               f'<span style="--w:{written / planned:.3f}"></span></div>')
+    return f'<aside class="hero-stats" aria-label="The library in numbers"><dl>{rows}</dl>{bar}</aside>'
+
+
 def landing_page(manifest: dict, math: bool = False, font_base: str | None = None,
                  math_css: str | None = None) -> str:
-    """index.html at the library root. Titles are text; `tagline`, `usage`, `status`,
-    blurbs, `licence` and `footer` may hold HTML (the manifest is the site owner's own
-    file). With `math`, TeX is left in for render_landing_math; without, it is plain text."""
+    """index.html at the library root: a product-style front page. Titles are text;
+    `tagline`, `usage`, `status`, blurbs, `licence` and `footer` may hold HTML. With
+    `math`, TeX is left in for render_landing_math; without, it is plain text."""
     landing = manifest["landing"]
     text = Text(manifest.get("macros"), math)
     title = landing.get("title") or "Library"
     tagline = landing.get("tagline") or landing.get("intro") or ""
     status = landing.get("status") or landing.get("badge") or ""
     toggle = (f'<button class="theme-toggle" type="button" hidden aria-pressed="false" '
-              f'aria-label="Dark mode">{SUN}{MOON}</button>')
-    parts = ['<a class="skip-link" href="#books">Skip to the books</a>',
-             '<div class="page">',
-             '<header class="masthead">', toggle, f"<h1>{escape(title)}</h1>"]
-    if tagline:
-        parts.append(f'<p class="tagline">{text.html(tagline)}</p>')
-    if landing.get("usage"):
-        parts.append(f'<p class="usage">{text.html(landing["usage"])}</p>')
+              f'aria-label="Switch to dark mode">{MOON}{SUN}</button>')
+    source = (landing.get("sources") or [{}])[0].get("href")
+    nav = ['<a href="#reading-order">Reading order</a>', '<a href="#volumes">Volumes</a>']
+    if source:
+        nav.append(f'<a href="{escape(source)}">Source</a>')
+    parts = ['<a class="skip-link" href="#volumes">Skip to the volumes</a>',
+             f'<header class="top"><div class="wrap"><a class="brand" href="./">{MARK}<span>{escape(title)}</span></a>'
+             f'<nav class="top-nav" aria-label="Page">{"".join(nav)}</nav>{toggle}</div></header>',
+             '<main>', '<section class="hero"><div class="wrap"><div class="hero-text">']
+    hero = []
     if status:
-        parts.append(f'<p class="status">{text.html(status)}</p>')
-    parts.append("</header>")
-    parts.append('<main id="books">')
+        hero.append(f'<p class="status">{text.html(status)}</p>')
+    hero.append(f"<h1>{escape(title)}</h1>")
+    if tagline:
+        hero.append(f'<p class="tagline">{text.html(tagline)}</p>')
+    if landing.get("usage"):
+        hero.append(f'<p class="usage">{text.html(landing["usage"])}</p>')
+    first = next((e for e in manifest["books"] if e.get("section-count")), manifest["books"][0])
+    first_title = escape(first.get("title-plain") or plain_text(first.get("title", "")))
+    hero.append('<div class="actions">'
+                f'<a class="btn primary" href="{escape(first["subdir"])}/"><span class="code">'
+                f'{escape(first.get("short") or first["prefix"].upper())}</span>Start with {first_title}{ARROW}</a>'
+                '<a class="btn" href="#reading-order">See the reading order</a></div>')
+    parts.extend(hero)
+    parts.append('</div>')
+    parts.append(hero_stats(manifest))
+    parts.append('</div></section>')
     parts.append(diagram_section(manifest, text))
-    # Sections with a single card sit side by side on a wide screen (a run of them shares
-    # one row), so a lone card does not leave two thirds of the page empty
-    run = []
+    parts.append('<section class="band" id="volumes" aria-labelledby="volumes-title"><div class="wrap">'
+                 '<div class="band-head"><div><span class="eyebrow">Library</span>'
+                 '<h2 id="volumes-title">Volumes</h2></div>'
+                 '<p>Each volume is a book of its own, with its own contents, search and exercises.</p></div>')
+    index = 0
+    run = []      # a run of one-card series sits side by side, so a lone card does not
+                  # leave a row two-thirds empty
 
     def flush():
         if len(run) > 1:
-            parts.append('<div class="band-row">' + "\n".join(run) + "</div>")
+            parts.append('<div class="series-row">' + "".join(run) + "</div>")
         else:
             parts.extend(run)
         run.clear()
@@ -552,16 +755,21 @@ def landing_page(manifest: dict, math: bool = False, font_base: str | None = Non
         blurb = group.get("blurb") or group.get("intro")
         cards = [book_card(entry, text) for entry in group["entries"]]
         cards += [link_card(link, text) for link in group.get("links") or []]
-        section = (f'<section class="band" aria-labelledby="{heading_id}">'
-                   f'<div class="band-head"><h2 id="{heading_id}">{escape(group["title"] or "Books")}</h2>'
+        items = []
+        for card in cards:
+            items.append(f'<li style="--i:{index}">{card}</li>')
+            index += 1
+        section = (f'<section class="series" aria-labelledby="{heading_id}">'
+                   f'<div class="series-head"><h3 id="{heading_id}">{escape(group["title"] or "Books")}</h3>'
                    + (f"<p>{text.html(blurb)}</p>" if blurb else "") + "</div>"
-                   + '<ul class="cards">' + "".join(f"<li>{card}</li>" for card in cards) + "</ul></section>")
-        if len(cards) == 1:
+                   + '<ul class="cards">' + "".join(items) + "</ul></section>")
+        if len(items) == 1:
             run.append(section)
         else:
             flush()
             parts.append(section)
     flush()
+    parts.append('</div></section>')
     parts.append("</main>")
     footer = []
     if landing.get("licence"):
@@ -569,13 +777,11 @@ def landing_page(manifest: dict, math: bool = False, font_base: str | None = Non
     if landing.get("sources"):
         links = " ".join(f'<a href="{escape(s.get("href", ""))}">{escape(s.get("title", ""))}</a>'
                          for s in landing["sources"])
-        label = escape(landing.get("sources-label") or "Source")
-        footer.append(f'<p class="sources">{label}: {links}</p>')
+        footer.append(f'<p class="sources"><span>{escape(landing.get("sources-label") or "Source")}:</span> {links}</p>')
     if landing.get("footer"):
         footer.append(f"<p>{landing['footer']}</p>")
     if footer:
-        parts.append('<footer class="site-footer">' + "\n".join(footer) + "</footer>")
-    parts.append("</div>")
+        parts.append('<footer class="site-footer"><div class="wrap">' + "\n".join(footer) + "</div></footer>")
     description = re.sub(r"<[^>]+>", "", plain_text(tagline, manifest.get("macros")))
     head = (f'<link rel="canonical" href="{escape(manifest["site-url"])}">\n'
             + (f'<meta name="description" content="{escape(description)}">\n' if description else "")

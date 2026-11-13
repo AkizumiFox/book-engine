@@ -467,7 +467,7 @@ book's own `_build/html`. `out` is then emptied (a `.git` and a `CNAME` are kept
 can be a clone of the site's repository) and filled: each book's HTML in `<subdir>/`
 (as `deploy` copies it: no stale chapters, no `_` scratch files, with redirect stubs),
 and at the root `index.html` (the landing page: light/dark following the system and the
-books' theme toggle and saved choice, the books' STIX Two Text and Inter served from a
+books' theme toggle and saved choice, the books' Source Serif 4 and Inter served from a
 book's `fonts/`, no external fonts or scripts), `404.html` (offers the book whose
 sub-directory the missing address is in; GitHub Pages serves only the root one),
 `robots.txt`, `sitemap.xml` (a sitemap index of each book's sitemap, except a book's

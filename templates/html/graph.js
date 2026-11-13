@@ -28,7 +28,19 @@ function loadScript(src) {
     });
 }
 
-const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+// A colour token as rgb(): the tokens are OKLCH where supported, which cytoscape cannot parse,
+// so each is painted on a 1px canvas and read back
+const colorCanvas = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+const cssVar = name => {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    if (!value || !colorCanvas) return value;
+    colorCanvas.clearRect(0, 0, 1, 1);
+    colorCanvas.fillStyle = '#000';
+    colorCanvas.fillStyle = value;
+    colorCanvas.fillRect(0, 0, 1, 1);
+    const [r, g, b, a] = colorCanvas.getImageData(0, 0, 1, 1).data;
+    return a === 255 ? `rgb(${r}, ${g}, ${b})` : value;
+};
 const escapeHtml = text => String(text).replace(
     /[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const basePath = () => document.querySelector('meta[name="asset-prefix"]')?.content || './';
@@ -45,7 +57,7 @@ function graphStyle() {
                 'background-color': paper,
                 'border-width': 2, 'border-color': accent,
                 'label': 'data(label)', 'color': ink,
-                'font-family': 'STIX Two Text, Times New Roman, serif', 'font-size': 14,
+                'font-family': 'Inter, system-ui, sans-serif', 'font-size': 13,
                 'text-wrap': 'wrap', 'text-max-width': 150, 'text-valign': 'center', 'text-halign': 'center',
                 'transition-property': 'opacity, border-width', 'transition-duration': '150ms',
             },

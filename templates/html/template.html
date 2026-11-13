@@ -3,17 +3,26 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- viewport-fit=cover: the page runs under the notch and home indicator, and the
+         header, drawer and palette pad themselves with env(safe-area-inset-*) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>$if(pagetitle)$$pagetitle$$else$$title-plain$$endif$ – $title-plain$</title>
 
     <meta name="asset-prefix" content="$if(asset-prefix)$$asset-prefix$$else$./$endif$">
     <meta name="page-path" content="$page-path$">
+    <meta name="book-title" content="$title-plain$">
+    <meta name="view-transition" content="same-origin">
 
     <meta name="color-scheme" content="light dark">
-    <!-- Theme and pane state before first paint (saved choice, else the system setting) -->
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#16181d" media="(prefers-color-scheme: dark)">
+    <!-- Theme, pane state and "JS is on" before first paint (saved choice, else the system
+         setting). The js class lets the stylesheet reserve the space and fold state that
+         main.js will create, so nothing jumps when it runs. -->
     <script>
         (function () {
             var root = document.documentElement, stored = {};
+            root.classList.add('js');
             try {
                 stored.theme = localStorage.getItem('book-theme');
                 stored.sidebar = localStorage.getItem('book-sidebar');
@@ -23,6 +32,7 @@
                 : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             if (stored.sidebar === 'collapsed') root.dataset.sidebar = 'collapsed';
             if (stored.toc === 'collapsed') root.dataset.toc = 'collapsed';
+            if (/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) root.dataset.os = 'mac';
         })();
     </script>
     $if(moved-ids)$
@@ -56,16 +66,15 @@
     $endif$
     <link rel="icon" href="$if(asset-prefix)$$asset-prefix$$endif$favicon.svg" type="image/svg+xml">
 
-    <!-- Fonts: STIX Two Text (matches MathJax's math font) for the text, Inter for the
-         interface, served with the site -->
-    <link rel="preload" href="$if(asset-prefix)$$asset-prefix$$endif$fonts/stix-two-text-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="preload" href="$if(asset-prefix)$$asset-prefix$$endif$fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <!-- Fonts, served with the site (fonts/, SIL Open Font License): Source Serif 4 for the
+         reading text, Inter for the interface and headings. The two Latin files every page
+         needs are preloaded; metric-matched local fallbacks keep the swap from moving text. -->
+    <link rel="preload" href="$if(asset-prefix)$$asset-prefix$$endif$fonts/source-serif-4-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="$if(asset-prefix)$$asset-prefix$$endif$fonts/inter-var-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
 
     <!-- Styles -->
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <meta name="asset-version" content="$asset-version$">
     <link rel="stylesheet" href="$if(asset-prefix)$$asset-prefix$$endif$styles.css?v=$asset-version$">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     $if(math-prerendered)$
     <!-- Math is rendered at build time (build/math.py); this is its stylesheet. MathJax itself
@@ -94,12 +103,6 @@
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml-full.js"></script>
     $endif$
 
-    <!-- Tippy.js for tooltips. All three scripts are deferred so neither blocks parsing;
-         deferred scripts run in document order, so main.js still sees tippy. -->
-    <script defer src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/tippy.js@6.3.7/dist/tippy-bundle.umd.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tippy.js@6.3.7/animations/shift-away.css">
-
     $if(highlighting-css)$
     <style>
 $highlighting-css$
@@ -111,36 +114,74 @@ $highlighting-css$
 </head>
 
 <body$if(wide-page)$ class="wide-page"$endif$>
-    <a class="skip-link" href="#quarto-content">Skip to content</a>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <!-- Site header: one bar across the window (brand, book, search, actions) -->
+    <header class="site-header">
+        <div class="site-header-inner">
+            <button type="button" class="icon-button sidebar-toggle" aria-controls="quarto-sidebar"
+                aria-expanded="true" aria-label="Hide book contents" data-tooltip="Hide contents">
+                <i class="bi bi-layout-sidebar sidebar-icon-pane" aria-hidden="true"></i>
+                <i class="bi bi-list sidebar-icon-menu" aria-hidden="true"></i>
+            </button>
+            <div class="brand">
+                $if(library-url)$
+                <a class="brand-library" href="$library-url$" aria-label="$if(library-title)$$library-title$$else$Library$endif$: all volumes">
+                    <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5.5"/><path d="M7 16.5 12 7l5 9.5M8.8 13.2h6.4"/></svg>
+                    <span class="brand-library-name">$if(library-title)$$library-title$$else$Library$endif$</span>
+                </a>
+                <span class="brand-sep" aria-hidden="true">/</span>
+                $endif$
+                <a href="$if(asset-prefix)$$asset-prefix$$endif$index.html" class="brand-book">
+                    $if(book-short)$<span class="brand-code">$book-short$</span>$endif$
+                    <span class="brand-book-title">$if(title)$$title$$endif$</span>
+                </a>
+            </div>
+            <button type="button" class="search-trigger" aria-haspopup="dialog" aria-controls="palette"
+                aria-label="Search this book" aria-keyshortcuts="Meta+K Control+K /">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <span class="search-trigger-label">Search</span>
+                <kbd class="kbd-combo" aria-hidden="true"><span class="kbd-mod">Ctrl</span><span>K</span></kbd>
+            </button>
+            <div class="header-actions">
+                <a class="icon-button header-pdf" href="$if(book-pdf-url)$$book-pdf-url$$else$#$endif$" target="_blank"
+                    aria-label="Full book (PDF)" data-tooltip="Full book (PDF)">
+                    <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
+                </a>
+                $if(repo-url)$
+                <a class="icon-button header-repo" href="$repo-url$" target="_blank" rel="noopener"
+                    aria-label="Source code" data-tooltip="Source code">
+                    <i class="bi bi-github" aria-hidden="true"></i>
+                </a>
+                $endif$
+                <button type="button" class="icon-button theme-toggle" aria-pressed="false"
+                    aria-label="Dark mode" data-tooltip="Dark mode">
+                    <i class="bi bi-moon-stars theme-icon-moon" aria-hidden="true"></i>
+                    <i class="bi bi-sun theme-icon-sun" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="icon-button toc-toggle" aria-controls="quarto-margin-sidebar"
+                    aria-expanded="true" aria-label="Hide on this page" data-tooltip="Hide “On this page”">
+                    <i class="bi bi-layout-sidebar-reverse" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+        <div class="read-progress" aria-hidden="true"><span></span></div>
+    </header>
 
     <div id="quarto-container">
-        <!-- Left Sidebar Navigation -->
+        <!-- Left: book contents (a drawer on phones) -->
         <nav id="quarto-sidebar" aria-label="Book contents">
             <div class="sidebar-header">
                 <a href="$if(asset-prefix)$$asset-prefix$$endif$index.html" class="sidebar-title">
                     $if(title)$$title$$endif$
                 </a>
-                <div class="sidebar-tools">
-                    <a href="$if(book-pdf-url)$$book-pdf-url$$else$#$endif$" title="Full book (PDF)" target="_blank">
-                        <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
-                        <span class="visually-hidden">Full book (PDF)</span>
-                    </a>
-                    $if(repo-url)$
-                    <a href="$repo-url$" title="Source Code" target="_blank">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
-                            viewBox="0 0 16 16">
-                            <path
-                                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
-                        </svg>
-                    </a>
-                    $endif$
-                </div>
+                <button type="button" class="icon-button drawer-close" aria-label="Close book contents">
+                    <i class="bi bi-x" aria-hidden="true"></i>
+                </button>
             </div>
-
-            <div class="sidebar-search">
-                <i class="bi bi-search" aria-hidden="true"></i>
-                <input type="search" class="search-input" id="search-input" placeholder="Search" aria-label="Search the book" autocomplete="off">
-                <kbd class="search-shortcut" aria-hidden="true">/</kbd>
+            <div class="sidebar-progress" hidden>
+                <div class="sidebar-progress-text"><span class="sidebar-progress-count">0</span> of <span class="sidebar-progress-total">0</span> sections done</div>
+                <div class="meter" aria-hidden="true"><span></span></div>
             </div>
 
             <nav class="sidebar-nav">
@@ -156,32 +197,7 @@ $highlighting-css$
 
         <!-- Main Content Area -->
         <main id="quarto-content">
-            <!-- Toolbar: book contents (drawer on phones, collapsible pane on wider screens),
-                 light/dark theme, and the "On this page" pane -->
-            <div class="topbar" role="toolbar" aria-label="Page layout">
-                <button type="button" class="icon-button sidebar-toggle" aria-controls="quarto-sidebar"
-                    aria-expanded="true" aria-label="Hide book contents" data-tooltip="Hide contents">
-                    <i class="bi bi-layout-sidebar sidebar-icon-pane" aria-hidden="true"></i>
-                    <i class="bi bi-list sidebar-icon-menu" aria-hidden="true"></i>
-                </button>
-                <a href="$if(asset-prefix)$$asset-prefix$$endif$index.html" class="topbar-title">$if(title)$$title$$endif$</a>
-                <div class="topbar-actions">
-                    <button type="button" class="icon-button theme-toggle" aria-pressed="false"
-                        aria-label="Dark mode" data-tooltip="Dark mode">
-                        <i class="bi bi-moon-stars theme-icon-moon" aria-hidden="true"></i>
-                        <i class="bi bi-sun theme-icon-sun" aria-hidden="true"></i>
-                    </button>
-                    <button type="button" class="icon-button toc-toggle" aria-controls="quarto-margin-sidebar"
-                        aria-expanded="true" aria-label="Hide on this page" data-tooltip="Hide “On this page”">
-                        <i class="bi bi-layout-sidebar-reverse" aria-hidden="true"></i>
-                    </button>
-                </div>
-            </div>
-
-
-            <article class="content">
-                <!-- Page title removed to avoid duplication with content H1 -->
-                <!-- Quarto-style Title Block -->
+            <article class="content" id="main">
                 <header id="title-block-header" class="quarto-title-block default">
                     $if(breadcrumbs)$
                     <nav class="quarto-title-breadcrumbs" aria-label="Breadcrumb">
@@ -189,10 +205,14 @@ $highlighting-css$
                     </nav>
                     $endif$
                     <div class="quarto-title">
-                        <h1 class="title">
-                            $if(section-number)$<span class="chapter-number">$section-number$</span>&nbsp; $endif$
-                            <span class="chapter-title">$title-text$</span>
-                        </h1>
+                        $if(section-number)$
+                        $else$
+                        $if(is-preface)$
+                        $else$
+                        <p class="eyebrow chapter-eyebrow"><span class="eyebrow-kind">Chapter</span> <span class="eyebrow-num">$chapter-num$</span></p>
+                        $endif$
+                        $endif$
+                        <h1 class="title"><span class="chapter-title">$title-text$</span></h1>
                     </div>
                 </header>
 
@@ -200,46 +220,42 @@ $highlighting-css$
             </article>
 
             <!-- Page Navigation -->
-            <nav class="page-navigation">
+            <nav class="page-navigation" aria-label="Previous and next">
                 <div class="nav-page nav-page-previous">
                     $if(prev-page-url)$
-                    <a href="$prev-page-url$" class="pagination-link" aria-label="$prev-page-label$">
-                        <i class="bi bi-arrow-left-short" aria-hidden="true"></i>
-                        <span class="nav-page-body">
-                            <span class="nav-page-label">Previous</span>
-                            <span class="nav-page-text">$if(prev-page-number)$$prev-page-number$ $endif$$prev-page-title$</span>
-                        </span>
+                    <a href="$prev-page-url$" class="pagination-link" rel="prev" aria-label="Previous: $prev-page-label$">
+                        <span class="nav-page-label"><i class="bi bi-arrow-left-short" aria-hidden="true"></i>Previous</span>
+                        <span class="nav-page-text">$if(prev-page-number)$<span class="nav-page-num">$prev-page-number$</span> $endif$<span class="nav-page-title">$prev-page-title$</span></span>
                     </a>
                     $endif$
                 </div>
                 <div class="nav-page nav-page-next">
                     $if(next-page-url)$
-                    <a href="$next-page-url$" class="pagination-link" aria-label="$next-page-label$">
-                        <span class="nav-page-body">
-                            <span class="nav-page-label">Next</span>
-                            <span class="nav-page-text">$if(next-page-number)$$next-page-number$ $endif$$next-page-title$</span>
-                        </span>
-                        <i class="bi bi-arrow-right-short" aria-hidden="true"></i>
+                    <a href="$next-page-url$" class="pagination-link" rel="next" aria-label="Next: $next-page-label$">
+                        <span class="nav-page-label">Next<i class="bi bi-arrow-right-short" aria-hidden="true"></i></span>
+                        <span class="nav-page-text">$if(next-page-number)$<span class="nav-page-num">$next-page-number$</span> $endif$<span class="nav-page-title">$next-page-title$</span></span>
                     </a>
                     $endif$
                 </div>
             </nav>
-            $if(report-url)$
-            <p class="page-feedback">
-                Found a typo or a mistake?
-                <a href="$report-url$" target="_blank" rel="noopener">Report it</a>$if(source-url)$,
-                or <a href="$source-url$" target="_blank" rel="noopener">read this page&rsquo;s source</a>$endif$
-            </p>
-            $if(license-name)$
-            <p class="page-license">
-                The text of this book is licensed under
-                $if(license-url)$<a href="$license-url$" target="_blank" rel="noopener license">$license-name$</a>$else$$license-name$$endif$.
-            </p>
-            $endif$
-            $endif$
+            <footer class="page-footer">
+                $if(report-url)$
+                <p class="page-feedback">
+                    Found a typo or a mistake?
+                    <a href="$report-url$" target="_blank" rel="noopener">Report it</a>$if(source-url)$,
+                    or <a href="$source-url$" target="_blank" rel="noopener">read this page&rsquo;s source</a>$endif$
+                </p>
+                $endif$
+                $if(license-name)$
+                <p class="page-license">
+                    The text of this book is licensed under
+                    $if(license-url)$<a href="$license-url$" target="_blank" rel="noopener license">$license-name$</a>$else$$license-name$$endif$.
+                </p>
+                $endif$
+            </footer>
         </main>
 
-        <!-- Right Sidebar (TOC) -->
+        <!-- Right: on this page -->
         <aside id="quarto-margin-sidebar">
             <nav class="toc" aria-label="On this page">
                 <h2>On this page</h2>
@@ -248,17 +264,45 @@ $highlighting-css$
                 $endif$
             </nav>
 
+            <div class="page-actions">
+                <button type="button" class="done-toggle" aria-pressed="false" hidden>
+                    <span class="done-box" aria-hidden="true"><i class="bi bi-check"></i></span>
+                    <span class="done-text">Mark section as done</span>
+                </button>
+            </div>
+
             <div class="other-formats">
                 <h3>Download</h3>
                 <ul>
-                    <li><a href="$if(pdf-url)$$pdf-url$$else$#$endif$" target="_blank">This section (PDF)</a></li>
-                    <li><a href="$if(book-pdf-url)$$book-pdf-url$$else$#$endif$" target="_blank">Full book (PDF)</a></li>
+                    <li><a href="$if(pdf-url)$$pdf-url$$else$#$endif$" target="_blank"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>This section (PDF)</a></li>
+                    <li><a href="$if(book-pdf-url)$$book-pdf-url$$else$#$endif$" target="_blank"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>Full book (PDF)</a></li>
                 </ul>
             </div>
         </aside>
     </div>
 
-    <!-- Tooltip Script -->
+    <!-- Command palette: search as an ARIA 1.2 combobox with a listbox popup (main.js) -->
+    <div class="palette" id="palette" role="dialog" aria-modal="true" aria-label="Search this book" hidden>
+        <div class="palette-backdrop" data-close></div>
+        <div class="palette-panel">
+            <div class="palette-field">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <input type="text" class="palette-input" id="search-input" role="combobox"
+                    aria-expanded="false" aria-controls="palette-list" aria-autocomplete="list"
+                    aria-label="Search sections and results" placeholder="Search sections, theorems, definitions…"
+                    autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+                <button type="button" class="palette-esc" data-close aria-label="Close search"><kbd>Esc</kbd></button>
+            </div>
+            <div class="palette-body">
+                <div class="palette-list" id="palette-list" role="listbox" aria-label="Search results"></div>
+                <p class="palette-empty" hidden></p>
+            </div>
+            <p class="visually-hidden" role="status" aria-live="polite" id="palette-status"></p>
+        </div>
+    </div>
+
+    <div class="toast" role="status" aria-live="polite" hidden></div>
+
     <script defer src="$if(asset-prefix)$$asset-prefix$$endif$main.js?v=$asset-version$"></script>
     $for(page-scripts)$
     <script type="module" src="$if(asset-prefix)$$asset-prefix$$endif$$page-scripts$?v=$asset-version$"></script>

@@ -177,6 +177,10 @@ def book_overlay(manifest: dict, entry: dict, own_config: dict, registries: dict
         "build-dir": manifest["build-dir"],
         "output": None,            # every output inside build-dir
         "external-books": external,
+        # the header's way back to the front page (template.html), and the book's code
+        "library": {"home": posixpath.relpath(".", entry["subdir"]) + "/",
+                    "title": (manifest.get("landing") or {}).get("title") or "Library",
+                    "short": entry.get("short") or entry["prefix"].upper()},
     }
     return merge_patch(overlay, entry.get("overlay") or {})
 

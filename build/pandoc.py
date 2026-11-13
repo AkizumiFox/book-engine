@@ -75,6 +75,14 @@ def page_metadata(book: Book, page: Page, output_format: str, extra: Optional[di
         metadata["breadcrumb-page-url"] = f"{prefix}{page.html_path}"
         metadata["pdf-url"] = f"{prefix}pdf/{Path(page.html_path).with_suffix('.pdf').as_posix()}"
         metadata["book-pdf-url"] = f"{prefix}book/book.pdf"
+        # The library this book is part of (set by build/library.py): the header links back
+        # to its front page, and shows the book's short code (F3) beside its title
+        library = book.config.get("library") or {}
+        if library.get("home"):
+            metadata["library-url"] = f"{prefix}{library['home']}index.html"
+            metadata["library-title"] = library.get("title") or "Library"
+        if library.get("short"):
+            metadata["book-short"] = library["short"]
         # The licence the book's text carries, shown in the page footer. A book whose
         # config names none simply renders no notice.
         licence = book.config.get("license") or {}

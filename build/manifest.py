@@ -357,29 +357,35 @@ def render_navigation(book: Book, page: Page) -> str:
     for index, chapter in enumerate(nav["chapters"]):
         paths = [s["path"] for s in chapter["sections"]]
         is_active = current in paths or current == chapter.get("path")
-        expanded = is_active or not chapter["collapsed"]
         first = chapter["sections"][0]["path"] if chapter["sections"] else None
         url = chapter["path"] or first
         if chapter["part"]:
             out.append(f'<li class="nav-part">{chapter["part"]}</li>')
-        out.append(f'<li class="nav-chapter{" active" if is_active else ""}">')
+        # Only the chapter you are in starts open (progressive disclosure); the toggle is a
+        # real button, and the sections sit in a grid wrapper so opening animates its height
+        out.append(f'<li class="nav-chapter{" active" if is_active else ""}"'
+                   f'{" data-open" if is_active else ""}>')
         out.append(f'<div class="nav-chapter-header" data-chapter="{index}">')
+        number = chapter.get("number")
+        number_html = f'<span class="nav-chapter-number">{number}</span>' if number not in (None, "") else ""
         out.append(f'<a href="{prefix + url if url else "#"}" class="nav-chapter-title-link">'
-                   f'<span class="nav-chapter-title">{chapter["title"]}</span></a>')
-        out.append(f'<span class="nav-toggle{" expanded" if expanded else ""}">'
-                   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" '
-                   'stroke="currentColor" stroke-width="2">'
-                   '<polyline points="9 18 15 12 9 6"></polyline></svg></span>')
+                   f'{number_html}<span class="nav-chapter-title">{chapter["title"]}</span></a>')
+        out.append(f'<button type="button" class="nav-toggle" aria-expanded="{"true" if is_active else "false"}" '
+                   f'aria-controls="nav-sections-{index}" aria-label="Sections of chapter {number if number not in (None, "") else index + 1}">'
+                   '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" '
+                   'stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5 10.5 8 6 12.5"/></svg></button>')
         out.append("</div>")
-        out.append(f'<ul class="nav-sections{"" if expanded else " collapsed"}">')
+        out.append(f'<div class="nav-sections-wrap" id="nav-sections-{index}"><ul class="nav-sections">')
         for section in chapter["sections"]:
             active = " active" if section["path"] == current else ""
+            current_attr = ' aria-current="page"' if active else ""
             out.append(
-                f'<li class="nav-section-item{active}">'
-                f'<a href="{prefix}{section["path"]}" title="{html_escape(section["title"], quote=True)}">'
+                f'<li class="nav-section-item{active}" data-path="{html_escape(section["path"], quote=True)}">'
+                f'<a href="{prefix}{section["path"]}"{current_attr}>'
                 f'<span class="nav-section-number">{section["number"]}</span>'
-                f'<span class="nav-section-title">{section["title"]}</span></a></li>')
-        out.append("</ul></li>")
+                f'<span class="nav-section-title">{section["title"]}</span>'
+                f'<span class="nav-done" aria-hidden="true"></span></a></li>')
+        out.append("</ul></div></li>")
 
     out.append("</ul>")
     return "".join(out)

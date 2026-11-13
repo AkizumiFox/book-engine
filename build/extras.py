@@ -570,7 +570,7 @@ def _render_page(book: Book, html_path: str, title: str, body_html: str, extra: 
     source.write_text(f"# {title} {{#page-title}}\n\n```{{=html}}\n{body_html}\n```\n", encoding="utf-8")
     page = Page(source=source, chapter=None, section=0, title=title, html_path=html_path)
     metadata = page_metadata(book, page, "html", extra)
-    metadata["breadcrumb-chapter-title"] = book.title
+    metadata["breadcrumb-chapter-title"] = book.plain_title   # a metadata string: no math typeset
     output = book.html_dir / html_path
     return run_pandoc(build_pandoc_command(book, page, output, "html", metadata))
 

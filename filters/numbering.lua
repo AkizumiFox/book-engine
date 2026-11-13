@@ -71,18 +71,18 @@ function Header(el)
         -- Increment counter
         h2_counter = h2_counter + 1
         
-        -- Create number string "Chapter.Section.H2 "
+        -- Create number string "Chapter.Section.H2" (no trailing period, as in the PDF)
         local number_str = ""
         local chapter = meta_vars.chapter_num or 0
         
         if chapter > 0 then
-            number_str = string.format("%d.%d.%d. ", chapter, section, h2_counter)
+            number_str = string.format("%d.%d.%d", chapter, section, h2_counter)
         elseif section > 0 then
              -- If chapter is 0 but section > 0 (e.g. ch00-foundations preliminary chapter)
-             number_str = string.format("0.%d.%d. ", section, h2_counter)
+             number_str = string.format("0.%d.%d", section, h2_counter)
         else
              -- Fallback if no chapter/section info
-             number_str = string.format("%d. ", h2_counter)
+             number_str = string.format("%d", h2_counter)
         end
         
         -- Prepend to content

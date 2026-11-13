@@ -900,7 +900,8 @@ local function external_reference(citation)
         target = url .. info.file .. "#" .. label
     end
     if FORMAT:match("html") then
-        local text = fill(template, { title = html_escape(ext.title or prefix),
+        -- the volume's title in a span, which the stylesheet sets in italics (a book title)
+        local text = fill(template, { title = '<span class="xref-book">' .. html_escape(ext.title or prefix) .. '</span>',
             short = html_escape(ext.short or prefix),
             ref = info and external_ref_text(info, false) or html_escape(label) })
         if url == "" then return pandoc.RawInline("html", text), true end

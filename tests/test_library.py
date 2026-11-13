@@ -149,12 +149,12 @@ class TestLibraryBuild(unittest.TestCase):
         self.assert_links_reach("beta/index.html", "alpha", {"thm-alpha"})
         self.assert_links_reach("beta/ch01-base/01-facts.html", "alpha", {"thm-alpha"})
         self.assertEqual(external_links(self.read("beta/index.html"))[0]["data-base"], "../alpha/")
-        self.assertIn("Alpha Book, Theorem 1.1.1", self.read("beta/ch01-base/01-facts.html"))
+        self.assertIn('<span class="xref-book">Alpha Book</span>, Theorem 1.1.1', self.read("beta/ch01-base/01-facts.html"))
 
     def test_book_settings_survive_the_overlay(self):
         # Alpha's config names book b itself: its title stays, its url and labels do not
         page = self.read("alpha/ch01-start/01-results.html")
-        self.assertIn("Beta, as Alpha calls it, Theorem 1.1.1", page)
+        self.assertIn('<span class="xref-book">Beta, as Alpha calls it</span>, Theorem 1.1.1', page)
         self.assertNotIn("beta.example.org", page)
 
     def test_canonical_urls_from_the_library(self):

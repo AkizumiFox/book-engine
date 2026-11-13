@@ -83,7 +83,7 @@ class TestExternalAbsoluteUrl(FixtureBookCase):
             page, r'<a\s+href="https://companion\.example\.org/ch01-tools/01-results\.html#thm-borrowed"'
                   r'\s+class="xref xref-external"\s+data-ref="thm-borrowed"\s+data-shard="ch01-tools"'
                   r'\s+data-base="https://companion\.example\.org/"\s+data-book="Companion Book">'
-                  r'Companion Book, Theorem 1\.1\.1</a>')
+                  r'<span class="xref-book">Companion Book</span>, Theorem 1\.1\.1</a>')
 
     def test_html_bracketed_reference_is_short(self):
         self.assertIn(">[CB, Example (Lent Example)]</a>", self.page("ch02-more/04-external.html"))
@@ -172,7 +172,7 @@ class TestExternalRegistryMissing(FixtureBookCase):
     def test_reference_falls_back_to_the_book(self):
         page = self.page("ch02-more/04-external.html")
         self.assertRegex(page, r'<a\s+href="https://companion\.example\.org/"\s+class="xref xref-external">'
-                               r'Companion Book, thm-borrowed</a>')
+                               r'<span class="xref-book">Companion Book</span>, thm-borrowed</a>')
 
     def test_check_warns_but_passes(self):
         result = run_build(self.book_dir, "check")

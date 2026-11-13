@@ -245,9 +245,15 @@
             heading.id = id;  // Ensure heading has an ID
 
             const indent = level === 'h3' ? ' toc-indent' : '';
+            // The number ("2.2.1") in its own span, so the pane can set it apart from the title
+            const numberEl = heading.querySelector('.header-section-number');
+            const number = numberEl ? numberEl.textContent.trim().replace(/\.$/, '') : '';
+            const titleEl = heading.cloneNode(true);
+            titleEl.querySelectorAll('.header-section-number, .anchor-link').forEach(el => el.remove());
+            const number_html = number ? `<span class="toc-number">${escapeHtml(number)}</span>` : '';
             html += `
                 <li class="toc-item${indent}">
-                    <a href="#${id}">${heading.textContent}</a>
+                    <a href="#${id}">${number_html}<span class="toc-text">${escapeHtml(titleEl.textContent.trim())}</span></a>
                 </li>
             `;
         });

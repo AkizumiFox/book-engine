@@ -1784,11 +1784,6 @@ h4 {
   text-wrap: balance;
 }
 
-.quarto-title h1.title .chapter-title {
-  /* the title morphs from the link that led here (shared element transition, main.js) */
-  view-transition-name: page-title;
-}
-
 .eyebrow {
   display: inline-flex;
   align-items: center;
@@ -4261,11 +4256,6 @@ div.sourceCode {
   animation: vt-rise-in var(--dur-3) var(--ease-out) both;
 }
 
-::view-transition-group(page-title) {
-  animation-duration: 320ms;
-  animation-timing-function: var(--ease-out);
-}
-
 ::view-transition-group(site-header),
 ::view-transition-group(book-contents) {
   animation: none;
@@ -4286,9 +4276,9 @@ div.sourceCode {
 }
 
 @keyframes vt-rise-in {
+  /* opacity only: nothing moves on navigation */
   from {
     opacity: 0;
-    transform: translateY(6px);
   }
 }
 

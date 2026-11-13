@@ -1527,29 +1527,10 @@
     // Page transitions: the followed link becomes the next page's title
     // ==========================================================================
 
-    let lastClicked = null;
-
-    function setupPageTransitions() {
-        document.addEventListener('click', event => {
-            const link = event.target.closest?.('a[href]');
-            lastClicked = link && !event.defaultPrevented ? link : null;
-        });
-        // pageswap fires on the old page just before its snapshot (Chrome 124+)
-        window.addEventListener('pageswap', event => {
-            if (!event.viewTransition || reduceMotion.matches) return;
-            const link = lastClicked;
-            const source = link && (link.querySelector('.nav-page-title') || link.querySelector('.nav-section-title')
-                || link.querySelector('.cs-title') || link.querySelector('.nav-chapter-title'));
-            if (!source) return;
-            const title = document.querySelector('.quarto-title h1 .chapter-title');
-            if (title) title.style.viewTransitionName = 'none';
-            source.style.viewTransitionName = 'page-title';
-            event.viewTransition.finished.finally(() => {
-                source.style.viewTransitionName = '';
-                if (title) title.style.viewTransitionName = '';
-            });
-        });
-    }
+    // Page navigation uses the plain cross-document cross-fade (@view-transition in
+    // styles.css). The clicked link's title is deliberately not morphed into the new
+    // page's heading: the morph slid the title across the window on every navigation.
+    function setupPageTransitions() {}
 
     // ==========================================================================
     // Start

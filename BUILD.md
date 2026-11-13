@@ -341,7 +341,14 @@ Config keys: `title`, `author`, `chapters` (directory strings, or `{"dir": …, 
   `labels.json` every build publishes at its site root, as a path or an http(s) URL
   (fetched once per build, cached). In text `@la:thm-x` reads "Linear Algebra, Theorem
   12.4"; bracketed `[@la:thm-x]` reads "[LA, Theorem 12.4]" (`format` / `short-format`
-  change that). Links carry the other book's hover preview, fetched from its site (same
+  change that; `short-format`, when not given, is `format` with `{short}` for `{title}`,
+  in brackets: `"format": "{short} {ref}"` alone makes `@la:thm-x` "LA Theorem 12.4" and
+  `[@la:thm-x]` "[LA Theorem 12.4]"). A bracket with the author's own words around a
+  reference keeps them, as written: `[\( \rulename{\exists E} \) (@la:thm-x), with
+  fresh names]` reads "[∃E (LA Theorem 12.4), with fresh names]" (the reference takes
+  `short-format` without its brackets), and so does a same-book one (`[by @thm-x (c)]`,
+  `@def-x [\( \rulename{\wedge I} \)]`); several references in one such bracket are
+  separated by ";", as written. Links carry the other book's hover preview, fetched from its site (same
   origin, or a site that allows cross-origin reads). An unknown label fails `check`; an
   unreadable registry is a warning and the reference prints without a number. Citations of
   another book are not dependencies here: they never count as forward or in a reading path.
@@ -449,7 +456,10 @@ How it builds, in two passes so books can cite each other in both directions:
    `external-books` = every other book of the manifest under its prefix, with `url` its
    relative sub-directory (`../fd2/`, so links and hover previews stay on one origin) and
    `labels` its pass-1 registry. A book's own `external-books` entries are kept; for a
-   manifest book only `url` and `labels` are replaced (its own `title`/`short` win).
+   manifest book only `url` and `labels` are replaced (its own `title`/`short` win). A
+   book the library adds that the book's own config lacks takes the `format` (and
+   `short-format`) every one of the book's own entries agrees on, so a series that cites
+   in the short form "F2 Proposition 5.2.5" needs no entry for every other volume.
    The overlay used is saved as `<build-dir>/library-overlay.json`.
 
 Books are built in `build-dir` (default `_build/library`), so the library never touches a

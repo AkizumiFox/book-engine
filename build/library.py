@@ -143,9 +143,17 @@ def book_overlay(manifest: dict, entry: dict, own_config: dict, registries: dict
 
     `registries` maps each prefix to its pass-1 label registry. The other books' `title`
     and `short` come from the manifest unless the book's own config already names them
-    for that prefix; `url` and `labels` always come from the library.
+    for that prefix; `url` and `labels` always come from the library. A prefix the book's
+    config lacks takes the `format` / `short-format` all its own entries share, if any.
     """
     own_external = own_config.get("external-books") or {}
+    # A book that cites every other book in one form (all its own entries agree on
+    # `format`, or on `short-format`) gets that form for the books the library adds
+    house = {}
+    for key in ("format", "short-format"):
+        forms = {(spec or {}).get(key) for spec in own_external.values()}
+        if len(forms) == 1 and None not in forms:
+            house[key] = forms.pop()
     external = {}
     for other in manifest["books"]:
         if other["prefix"] == entry["prefix"]:
@@ -157,6 +165,8 @@ def book_overlay(manifest: dict, entry: dict, own_config: dict, registries: dict
             spec["title"] = other.get("title") or other["prefix"]
         if not mine.get("short"):
             spec["short"] = other.get("short") or other["prefix"].upper()
+        if other["prefix"] not in own_external:
+            spec.update(house)
         external[other["prefix"]] = spec
     overlay = {
         "site-url": manifest["site-url"] + entry["subdir"] + "/",

@@ -99,6 +99,23 @@ class TestManifest(unittest.TestCase):
         self.assertEqual(book_overlay(manifest, b, {}, registries)["external-books"]["a"],
                          {"url": "../alpha/", "labels": "/r/a.json", "title": "Alpha Book", "short": "A"})
 
+    def test_overlay_added_books_take_the_house_format(self):
+        """A book whose own entries all cite in one form gets it for the books the library
+        adds; an entry of its own keeps its own; entries that disagree give no form."""
+        manifest = load_manifest(FIXTURES / "library.json")
+        a, b = manifest["books"]
+        registries = {"a": Path("/r/a.json"), "b": Path("/r/b.json")}
+        own = {"external-books": {"zz": {"format": "{short} {ref}"},
+                                  "yy": {"format": "{short} {ref}"}}}
+        self.assertEqual(book_overlay(manifest, a, own, registries)["external-books"]["b"]["format"],
+                         "{short} {ref}")
+        own["external-books"]["b"] = {"format": "{title}: {ref}"}
+        spec = book_overlay(manifest, a, own, registries)["external-books"]["b"]
+        self.assertNotIn("format", spec)          # its own entry, merged by the overlay, wins
+        own["external-books"]["yy"]["format"] = "{title}, {ref}"
+        del own["external-books"]["b"]
+        self.assertNotIn("format", book_overlay(manifest, a, own, registries)["external-books"]["b"])
+
 
 class TestLibraryBuild(unittest.TestCase):
     """The two fixture books built into one site through the command line."""

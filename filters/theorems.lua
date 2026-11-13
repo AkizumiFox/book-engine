@@ -881,8 +881,10 @@ end
 -- is not @prefix:label for a configured prefix; inline is nil when the label is unknown
 -- (the reference is then left as written, like an unresolved local one).
 -- In-text @la:thm-x reads "Linear Algebra, Theorem 12.4" ("format"); bracketed
--- [@la:thm-x] reads "[LA, Theorem 12.4]" ("short-format").
-local function external_reference(citation)
+-- [@la:thm-x] reads "[LA, Theorem 12.4]" ("short-format"). `embedded` (the reference
+-- inside a bracket of the author's, with words around it): the short form without its
+-- own brackets, "LA, Theorem 12.4".
+local function external_reference(citation, embedded)
     local prefix, label = citation.id:match("^(%a[%w_]*):(.+)$")
     local ext = prefix and external_books[prefix]
     if not ext then return nil, false end
@@ -892,7 +894,13 @@ local function external_reference(citation)
                         .. tostring(ext.title) .. ")\n")
         return nil, true
     end
-    local template = citation.mode == "NormalCitation" and ext["short-format"] or ext.format
+    local template = ext.format
+    if embedded then
+        local short = ext["short-format"] or ""
+        template = short:match("^%[(.*)%]$") or short
+    elseif citation.mode == "NormalCitation" then
+        template = ext["short-format"]
+    end
     local url = ext.url or ""
     local absolute = url:match("^%a[%w+.-]*:") ~= nil or url:sub(1, 1) == "/"
     local target = url
@@ -1233,74 +1241,133 @@ end
 -- Cross-Reference Resolution
 -- Numbered targets read "Theorem 1.2.3"; unnumbered ones (examples) read "Example (Title)".
 -- HTML and LaTeX produce the same text.
-local function process_citations(cite)
-    local refs = {}
-    for _, citation in ipairs(cite.citations) do
-        local id = citation.id
-        local label_info = labels[id] or global_labels[id]
-        local external, is_external = nil, false
-        if not label_info then external, is_external = external_reference(citation) end
 
-        if is_external then
-            if not external then return nil end
-            table.insert(refs, external)
-        elseif label_info then
-            local numbered = label_info.number and label_info.number ~= ""
-            local name = label_info.type_name
-            
-            if FORMAT:match("html") then
-                local text = name
-                if numbered then
-                    text = name .. " " .. label_info.number
-                elseif label_info.title_html and label_info.title_html ~= "" then
-                    text = name .. " (" .. label_info.title_html .. ")"
-                end
-                -- Same-document labels have no file; others are relative to the site root
-                local target_url = "#" .. id
-                if label_info.file and label_info.file ~= "" then
-                   local prefix = doc_meta and doc_meta["asset-prefix"] and pandoc.utils.stringify(doc_meta["asset-prefix"]) or ""
-                   target_url = prefix .. label_info.file .. "#" .. id
-                end
-                table.insert(refs, pandoc.Link(
-                    {pandoc.RawInline("html", text)},
-                    target_url,
-                    "",
-                    pandoc.Attr("", {"xref"}, {{"data-ref", id}, {"data-shard", label_info.shard or page_shard()}})
-                ))
-            elseif FORMAT:match("latex") then
-                -- A label defined in another section's file cannot be \\ref'd from this
-                -- section's PDF; print its number instead (the book PDF has all labels)
-                local in_document = labels[id] ~= nil or is_book_mode()
-                local text
-                if numbered and in_document then
-                    text = string.format("%s~\\ref*{%s}", name, id)
-                elseif numbered then
-                    text = name .. "~" .. label_info.number
-                elseif label_info.title_latex and label_info.title_latex ~= "" then
-                    text = name .. " (" .. label_info.title_latex .. ")"
-                else
-                    text = name
-                end
-                if in_document then
-                    table.insert(refs, pandoc.RawInline("latex", string.format("\\hyperref[%s]{%s}", id, text)))
-                else
-                    table.insert(refs, pandoc.RawInline("latex", text))
-                end
-            else
-                table.insert(refs, pandoc.Str(numbered and (name .. " " .. label_info.number) or name))
-            end
+-- One citation as an inline, or nil when it is left as written (unresolved). `embedded`:
+-- the reference sits inside a bracket the author wrote around words of their own, so a
+-- reference into another book takes its short form without the short form's brackets.
+local function reference_inline(citation, embedded)
+    local id = citation.id
+    local label_info = labels[id] or global_labels[id]
+    if not label_info then
+        local external, is_external = external_reference(citation, embedded)
+        if is_external then return external end
+        -- Leave the text alone: @name may be a real citation or an email-like string
+        if id:match("^%a+%-") then
+            io.stderr:write("Warning: unresolved reference @" .. id .. "\n")
+        elseif id:match("^%a[%w_]*:%a+%-") then
+            io.stderr:write("Warning: unresolved reference @" .. id
+                            .. " (no such book prefix in the config's external-books)\n")
+        end
+        return nil
+    end
+    local numbered = label_info.number and label_info.number ~= ""
+    local name = label_info.type_name
+
+    if FORMAT:match("html") then
+        local text = name
+        if numbered then
+            text = name .. " " .. label_info.number
+        elseif label_info.title_html and label_info.title_html ~= "" then
+            text = name .. " (" .. label_info.title_html .. ")"
+        end
+        -- Same-document labels have no file; others are relative to the site root
+        local target_url = "#" .. id
+        if label_info.file and label_info.file ~= "" then
+           local prefix = doc_meta and doc_meta["asset-prefix"] and pandoc.utils.stringify(doc_meta["asset-prefix"]) or ""
+           target_url = prefix .. label_info.file .. "#" .. id
+        end
+        return pandoc.Link(
+            {pandoc.RawInline("html", text)},
+            target_url,
+            "",
+            pandoc.Attr("", {"xref"}, {{"data-ref", id}, {"data-shard", label_info.shard or page_shard()}})
+        )
+    elseif FORMAT:match("latex") then
+        -- A label defined in another section's file cannot be \\ref'd from this
+        -- section's PDF; print its number instead (the book PDF has all labels)
+        local in_document = labels[id] ~= nil or is_book_mode()
+        local text
+        if numbered and in_document then
+            text = string.format("%s~\\ref*{%s}", name, id)
+        elseif numbered then
+            text = name .. "~" .. label_info.number
+        elseif label_info.title_latex and label_info.title_latex ~= "" then
+            text = name .. " (" .. label_info.title_latex .. ")"
         else
-            -- Leave the text alone: @name may be a real citation or an email-like string
-            if id:match("^%a+%-") then
-                io.stderr:write("Warning: unresolved reference @" .. id .. "\n")
-            elseif id:match("^%a[%w_]*:%a+%-") then
-                io.stderr:write("Warning: unresolved reference @" .. id
-                                .. " (no such book prefix in the config's external-books)\n")
+            text = name
+        end
+        if in_document then
+            return pandoc.RawInline("latex", string.format("\\hyperref[%s]{%s}", id, text))
+        end
+        return pandoc.RawInline("latex", text)
+    end
+    return pandoc.Str(numbered and (name .. " " .. label_info.number) or name)
+end
+
+-- Whether the author wrote the key against the word before it, as in "(@thm-x)": pandoc
+-- keeps no space in the prefix either way, so the written text (the Cite's content) says.
+local function key_attached(cite, id)
+    for _, inline in ipairs(cite.content) do
+        if inline.t == "Str" then
+            local at = inline.text:find("@" .. id, 1, true)
+            if at then
+                local before = inline.text:sub(1, at - 1):gsub("^%[", ""):gsub("%-$", "")
+                return before ~= ""
             end
-            return nil
         end
     end
-    
+    return false
+end
+
+-- A bracket holding words besides the references, such as
+-- "[\( \rulename{\exists E} \) (@fd1:prp-x), with fresh names]", or an in-text
+-- reference followed by one ("@def-x [\( \rulename{\wedge I} \)]"), which pandoc
+-- reads as the citation's prefix and suffix: printed as written, each reference resolved.
+local function citations_with_words(cite)
+    local result = pandoc.Inlines{}
+    local citations = cite.citations
+    if #citations == 1 and citations[1].mode == "AuthorInText" then
+        local ref = reference_inline(citations[1], false)
+        if not ref then return nil end
+        result:insert(ref)
+        result:insert(pandoc.Space())
+        result:insert(pandoc.Str("["))
+        result:extend(citations[1].suffix)
+        result:insert(pandoc.Str("]"))
+        return result
+    end
+    result:insert(pandoc.Str("["))
+    for i, citation in ipairs(citations) do
+        local ref = reference_inline(citation, true)
+        if not ref then return nil end
+        if i > 1 then
+            result:insert(pandoc.Str(";"))
+            result:insert(pandoc.Space())
+        end
+        if #citation.prefix > 0 then
+            result:extend(citation.prefix)
+            if not key_attached(cite, citation.id) then result:insert(pandoc.Space()) end
+        end
+        result:insert(ref)
+        result:extend(citation.suffix)
+    end
+    result:insert(pandoc.Str("]"))
+    return result
+end
+
+local function process_citations(cite)
+    for _, citation in ipairs(cite.citations) do
+        if #citation.prefix > 0 or #citation.suffix > 0 then
+            return citations_with_words(cite)
+        end
+    end
+    local refs = {}
+    for _, citation in ipairs(cite.citations) do
+        local ref = reference_inline(citation, false)
+        if not ref then return nil end
+        table.insert(refs, ref)
+    end
+
     if #refs == 1 then
         return refs[1]
     else

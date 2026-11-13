@@ -43,6 +43,13 @@ PUBLISHED_FIELDS = ("type", "type_name", "number", "title", "title_html", "title
 DEFAULT_FORMAT = "{title}, {ref}"          # @la:thm-x    -> Linear Algebra, Theorem 12.4
 DEFAULT_SHORT_FORMAT = "[{short}, {ref}]"  # [@la:thm-x]  -> [LA, Theorem 12.4]
 
+
+def default_short_format(fmt: str) -> str:
+    """The bracketed form when the config names none: the in-text `format` with the short
+    name, in brackets ("{short} {ref}" -> "[{short} {ref}]"; the default format gives
+    DEFAULT_SHORT_FORMAT)."""
+    return "[" + fmt.replace("{title}", "{short}") + "]"
+
 EXTERNAL_REF = re.compile(r"^([A-Za-z][\w]*):(.+)$")
 
 
@@ -155,7 +162,8 @@ def resolve(book: Book, refresh: bool = False) -> dict:
             "short": spec.get("short") or title,
             "url": url,
             "format": spec.get("format") or DEFAULT_FORMAT,
-            "short-format": spec.get("short-format") or DEFAULT_SHORT_FORMAT,
+            "short-format": (spec.get("short-format")
+                             or default_short_format(spec.get("format") or DEFAULT_FORMAT)),
             "available": labels is not None,
             "problem": problem,
             "labels": published_registry(labels or {})["crossref_labels"],

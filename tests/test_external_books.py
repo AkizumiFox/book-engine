@@ -7,6 +7,7 @@ _build/html/labels.json; the fixture book's config points `labels` at that file.
 """
 
 import json
+import re
 import shutil
 import sys
 import unittest
@@ -37,12 +38,12 @@ By @cb:thm-borrowed and @lem-helper.
 
 
 def configure(book_dir: Path, url: str, labels: str = "../companion/_build/html/labels.json",
-              extra_text: str = ""):
+              extra_text: str = "", **spec):
     """Register the companion as `cb` and add a section citing it."""
     config_file = book_dir / "book.json"
     config = json.loads(config_file.read_text())
     config["external-books"] = {
-        "cb": {"title": "Companion Book", "short": "CB", "url": url, "labels": labels},
+        "cb": {"title": "Companion Book", "short": "CB", "url": url, "labels": labels, **spec},
     }
     config_file.write_text(json.dumps(config, indent=2))
     refs = book_dir / "src" / "ch02-more" / "01-refs.md"
@@ -138,6 +139,69 @@ class TestExternalRelativeUrl(FixtureBookCase):
         tex = (self.book.build_dir / "tmp" / "pdf-single" / "ch02-more" / "04-external.tex").read_text()
         self.assertIn("Companion Book, Theorem~1.1.1", tex)
         self.assertNotIn(r"\href{../", tex)
+
+
+WORDS = r"""
+Words: [\( \alpha \) (@cb:thm-borrowed), with fresh names \( a \)].
+
+Same book: [by @thm-main (c) with words].
+
+In text: @lem-helper [\( \beta \), opening].
+
+Nested: [As in @thm-main, then (@cb:thm-borrowed).]
+
+Two: [see @thm-main; also @cb:thm-borrowed, there].
+"""
+
+
+class TestReferencesWithWords(FixtureBookCase):
+    """A bracket with the author's words around a reference keeps them (pandoc reads them
+    as the citation's prefix and suffix); with "format": "{short} {ref}" alone, the
+    bracketed form is "[CB Theorem 1.1.1]"."""
+
+    build_commands = [("html",), ("pdf",)]
+
+    @classmethod
+    def prepare(cls, book_dir: Path):
+        build_companion(book_dir)
+        configure(book_dir, "https://companion.example.org/", extra_text=WORDS,
+                  format="{short} {ref}")
+
+    def text(self):
+        """The page's text with tags dropped (math rendered)."""
+        page = self.page("ch02-more/04-external.html")
+        return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", page))
+
+    def tex(self):
+        tex = (self.book.build_dir / "tmp" / "pdf-single" / "ch02-more" / "04-external.tex").read_text()
+        return re.sub(r"\s+", " ", tex)
+
+    def test_short_format_follows_format(self):
+        self.assertIn("In-text: CB Theorem 1.1.1.", self.text())
+        self.assertIn("Bracketed: [CB Example (Lent Example)].", self.text())
+
+    def test_html_cross_volume_words_kept(self):
+        self.assertIn("Words: [α (CB Theorem 1.1.1), with fresh names a].", self.text())
+        self.assertIn("Two: [see Theorem 1.1.1; also CB Theorem 1.1.1, there].", self.text())
+
+    def test_html_same_volume_words_kept(self):
+        text = self.text()
+        self.assertIn("Same book: [by Theorem 1.1.1 (c) with words].", text)
+        self.assertIn("In text: Lemma 1.1.2 [β, opening].", text)
+        self.assertIn("Nested: [As in Theorem 1.1.1, then (CB Theorem 1.1.1).]", text)
+
+    def test_html_references_still_link(self):
+        page = self.page("ch02-more/04-external.html")
+        self.assertRegex(page, r'\[by <a\s+href="\.\./ch01-basics/01-first\.html#thm-main"\s+class="xref"')
+        self.assertRegex(page, r'\(<a\s+href="https://companion\.example\.org/ch01-tools/01-results\.html'
+                               r'#thm-borrowed"\s+class="xref xref-external"')
+
+    def test_latex_words_kept(self):
+        tex = self.tex()
+        self.assertIn(r"Words: {[}\(\alpha\) (\href{https://companion.example.org/ch01-tools/"
+                      r"01-results.html\#thm-borrowed}{CB Theorem~1.1.1}), with fresh names \(a\){]}.", tex)
+        self.assertIn("Same book: {[}by Theorem~1.1.1 (c) with words{]}.", tex)
+        self.assertIn(r"In text: Lemma~1.1.2 {[}\(\beta\), opening{]}.", tex)
 
 
 class TestExternalUnknownLabel(FixtureBookCase):
